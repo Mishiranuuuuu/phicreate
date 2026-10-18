@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { LandingPage } from '@/pages/LandingPage/LandingPage';
 import { EditorPage } from '@/pages/EditorPage/EditorPage';
 import { useProjectStore } from '@/features/projects/useProjectStore';
@@ -26,12 +26,12 @@ function useBootstrap() {
 export function App() {
   useBootstrap();
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/editor/:projectId" element={<EditorPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }

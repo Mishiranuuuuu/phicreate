@@ -6,6 +6,7 @@ import { fileURLToPath, URL } from 'node:url';
 const { version } = JSON.parse(readFileSync('./package.json', 'utf8')) as { version: string };
 
 export default defineConfig({
+  base: './',
   plugins: [react()],
   define: { __APP_VERSION__: JSON.stringify(version) },
   resolve: {
