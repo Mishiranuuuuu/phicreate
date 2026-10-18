@@ -2,7 +2,7 @@
 
 PhiCreate is a browser-based fan-made Phigros chart editor, with support for all modern chart formats and features. It has features from the chart editor we all know and love.
 <img width="1920" height="1080" alt="Screenshot 2026-10-17 191354" src="https://github.com/user-attachments/assets/c9f64e93-ac88-4d00-b984-c27138aae6bd" />
-*Desultory Signals [AT18] from Phigros*
+*Desultory Signals [AT18] - higros*
 
 ## Usage
 Access it via GitHub pages:
@@ -20,6 +20,17 @@ PhiCreate does everything you would expect a chart editor to do. Below are some 
 - Enhanced video support and preview (see below).
 - File manager (add, replace, delete additional storyboarding files).
 - Automatic conversion and event reconstruction when importing official-format charts.
+
+
+https://github.com/user-attachments/assets/dc1f0bc7-b2be-46a2-bdcc-fa9080f1c98e
+
+*Ascension to Heaven [IN16] - #30090 on Phira*
+
+
+https://github.com/user-attachments/assets/1a02d8fb-87ec-4014-9f7f-73f43eed5c5e
+
+*ハテ [AT17] - Phigros*
+
 
 ## Similarities
 Many aspects of PhiCreate are similar to existing applications for ease of use. Such as:
