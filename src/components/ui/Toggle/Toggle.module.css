@@ -1,0 +1,36 @@
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 10px;
+  background: var(--c-border);
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+.track[aria-checked='true'] {
+  background: var(--c-accent);
+}
+
+.thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-text);
+  transition: transform var(--t-fast);
+}
+.track[aria-checked='true'] .thumb {
+  transform: translateX(16px);
+  background: var(--c-on-accent);
+}

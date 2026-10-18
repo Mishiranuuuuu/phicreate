@@ -1,0 +1,26 @@
+.progress {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--sp-1);
+  width: var(--editor-sidebar-w);
+  flex-shrink: 0;
+  padding: 0 var(--sp-3);
+  background: var(--c-surface);
+  border-left: 1px solid var(--c-border);
+  border-bottom: 1px solid var(--c-border);
+  font-family: ui-monospace, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+
+.readout {
+  display: flex;
+  justify-content: space-between;
+}
+
+.seek {
+  width: 100%;
+  accent-color: var(--c-accent);
+}

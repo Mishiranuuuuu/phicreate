@@ -1,0 +1,10 @@
+.input {
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  color: var(--c-text-muted);
+}
+.input:hover {
+  border-color: var(--c-hover);
+}

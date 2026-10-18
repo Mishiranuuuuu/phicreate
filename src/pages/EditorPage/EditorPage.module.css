@@ -1,0 +1,36 @@
+.page {
+  --editor-header-h: 96px;
+  --editor-footer-h: 28px;
+  --editor-sidebar-w: 340px;
+  --editor-objects-w: 240px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  height: 100%;
+  color: var(--c-text-muted);
+}
+
+.message a {
+  color: var(--c-accent);
+  text-decoration: none;
+}

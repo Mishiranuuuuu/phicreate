@@ -1,0 +1,174 @@
+.layout {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: var(--sp-5);
+  min-height: 360px;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-2) var(--sp-3);
+  border: none;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--t-fast),
+    color var(--t-fast);
+}
+.tab:hover {
+  background: var(--c-raised);
+  color: var(--c-text);
+}
+.active,
+.active:hover {
+  background: var(--c-accent-soft);
+  color: var(--c-accent);
+}
+
+.count {
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+}
+
+.heading {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-text-muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+}
+.row + .row {
+  border-top: 1px solid var(--c-border);
+}
+.row:hover {
+  background: var(--c-raised);
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--c-text-muted);
+}
+
+.name {
+  overflow: hidden;
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rename {
+  font-size: var(--fs-sm);
+}
+
+.detail {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+
+.badge {
+  flex-shrink: 0;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--c-raised);
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+}
+.used {
+  background: var(--c-accent-soft);
+  color: var(--c-accent);
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--sp-1);
+}
+
+.actions .action {
+  width: 28px;
+  height: 28px;
+}
+.actions .action svg {
+  width: 16px;
+  height: 16px;
+}
+.actions .action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Prefixed to outrank the IconButton base styles. */
+.actions .delete,
+.actions .delete:not(:disabled):hover {
+  color: var(--c-danger);
+}
+.actions .delete:not(:disabled):hover {
+  background: var(--c-danger-soft);
+}
+.actions .confirm,
+.actions .confirm:not(:disabled):hover {
+  background: var(--c-danger);
+  color: var(--c-bg);
+}
+
+.empty,
+.note {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+}
+
+.error {
+  font-size: var(--fs-sm);
+  color: var(--c-danger);
+}

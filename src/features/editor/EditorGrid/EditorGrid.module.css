@@ -1,0 +1,79 @@
+.grid {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: var(--c-bg);
+}
+
+.stageArea {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  container-type: size;
+}
+
+/* Largest 3:2 box that fits the area. */
+.stage {
+  position: relative;
+  width: min(100cqw, 150cqh);
+  aspect-ratio: 3 / 2;
+  background: var(--c-bg);
+  outline: 1px solid var(--c-border);
+}
+
+.clipboard {
+  position: absolute;
+  left: var(--sp-2);
+  bottom: calc(34px + var(--sp-2));
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 2px var(--sp-2);
+  background: var(--c-accent-soft);
+  border: 1px solid var(--c-accent);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+  color: var(--c-accent);
+}
+.clipboard button {
+  padding: 0 var(--sp-1);
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.split {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.splitCentered {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 50%;
+  justify-content: center;
+}
+
+.half,
+.halfActive {
+  position: relative;
+  min-width: 0;
+  border-top: 2px solid transparent;
+}
+.half + .half,
+.half + .halfActive,
+.halfActive + .half {
+  border-left: 1px solid var(--c-border);
+}
+.halfActive {
+  border-top-color: var(--c-accent);
+}

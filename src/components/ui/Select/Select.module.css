@@ -1,0 +1,20 @@
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.select {
+  height: 32px;
+  min-width: 140px;
+  padding: 0 var(--sp-2);
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+.select:focus {
+  outline: none;
+  border-color: var(--c-accent);
+}
