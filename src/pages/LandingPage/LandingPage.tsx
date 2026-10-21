@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, IconButton, PlayIcon, PlusIcon, SettingsIcon } from '@/components/ui';
+import { Button, IconButton, Modal, PlusIcon, SettingsIcon } from '@/components/ui';
 import { useProjectStore } from '@/features/projects/useProjectStore';
 import { ProjectList } from '@/features/projects/ProjectList/ProjectList';
 import { NewProjectModal } from '@/features/projects/NewProjectModal/NewProjectModal';
@@ -14,7 +14,7 @@ import { ImportConfirmModal } from '@/features/projects/ImportConfirmModal/Impor
 import type { ImportResult, NewProjectInput } from '@/features/projects/types';
 import styles from './LandingPage.module.css';
 
-type ModalKind = 'new' | 'manage' | 'settings' | 'phira' | null;
+type ModalKind = 'new' | 'manage' | 'settings' | 'phira' | 'delete' | null;
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -23,9 +23,9 @@ export function LandingPage() {
   const [modal, setModal] = useState<ModalKind>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [pending, setPending] = useState<ImportResult | null>(null);
   const closeModal = () => setModal(null);
+  const selectedProject = projects.find((p) => p.id === selectedId);
 
   const selectProject = (id: string) => {
     select(id);
@@ -62,7 +62,7 @@ export function LandingPage() {
   };
 
   const deleteSelected = async () => {
-    setConfirmDelete(false);
+    closeModal();
     if (selectedId) await remove(selectedId);
   };
 
@@ -134,31 +134,11 @@ export function LandingPage() {
                 selectedId={selectedId}
                 onSelect={selectProject}
                 onOpen={openProject}
+                onManage={() => setModal('manage')}
+                onDelete={() => setModal('delete')}
               />
             )}
           </div>
-
-          <footer className={styles.footer}>
-            <Button
-              variant="danger"
-              disabled={!selectedId}
-              onClick={() => (confirmDelete ? deleteSelected() : setConfirmDelete(true))}
-              onBlur={() => setConfirmDelete(false)}
-            >
-              {confirmDelete ? 'Confirm' : 'Delete'}
-            </Button>
-            <Button disabled={!selectedId} onClick={() => setModal('manage')}>
-              Manage
-            </Button>
-            <Button
-              variant="primary"
-              size="lg"
-              disabled={!selectedId}
-              onClick={() => selectedId && openProject(selectedId)}
-            >
-              Begin Editing <PlayIcon />
-            </Button>
-          </footer>
         </div>
       </main>
 
@@ -171,6 +151,27 @@ export function LandingPage() {
       />
       <ManageProjectsModal open={modal === 'manage'} onClose={closeModal} />
       <SettingsModal open={modal === 'settings'} onClose={closeModal} />
+      <Modal
+        open={modal === 'delete' && !!selectedProject}
+        title="Delete Project"
+        width={400}
+        onClose={closeModal}
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeModal}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={deleteSelected}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p>
+          Are you sure you want to delete <strong>{selectedProject?.name}</strong>? This action
+          cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

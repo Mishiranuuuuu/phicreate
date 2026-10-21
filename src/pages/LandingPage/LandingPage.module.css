@@ -117,13 +117,3 @@
   border-radius: var(--r-lg);
   color: var(--c-text-muted);
 }
-
-.footer {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: var(--sp-3);
-  padding-top: var(--sp-4);
-  margin-top: var(--sp-3);
-  border-top: 1px solid var(--c-border);
-}

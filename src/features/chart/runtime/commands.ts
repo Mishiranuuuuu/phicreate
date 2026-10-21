@@ -1,5 +1,9 @@
-import { add, cmp, eq, ZERO } from '../model/beat';
+import { createId } from '@/lib/id';
+import { add, cmp, eq, fromFloat, sub, toFloat, ZERO } from '../model/beat';
+import { isColor } from '../model/color';
 import {
+  CANVAS_HEIGHT,
+  CANVAS_WIDTH,
   createEffect,
   createLayer,
   createLine,
@@ -7,12 +11,16 @@ import {
   createNoiseField,
   createText,
 } from '../model/defaults';
+import { ease } from '../model/easing';
+import { beatToSeconds } from '../model/timing';
 import {
   CHANNELS,
   type Beat,
   type BpmPoint,
   type Chart,
+  type Color,
   type ColorEvent,
+  type Easing,
   type Event,
   type EventItem,
   type EventOwner,
@@ -106,7 +114,7 @@ export const patchOwner = (chart: Chart, id: Id, patch: OwnerPatch) =>
 // The line and everything parented below it.
 export function lineDescendants(lines: JudgeLine[], id: Id) {
   const out = new Set([id]);
-  for (let grew = true; grew;) {
+  for (let grew = true; grew; ) {
     grew = false;
     for (const l of lines) {
       if (l.parentId && out.has(l.parentId) && !out.has(l.id)) {
@@ -393,11 +401,15 @@ const has = (events: AnyEvent[], ids: Set<Id>) => events.some((e) => ids.has(e.i
 
 // Maps the matching events of the given tracks.
 const mapIds =
-  (ids: Id[], fn: (e: AnyEvent) => AnyEvent, keys?: (key: TrackKey) => boolean): TrackEdit =>
+  (
+    ids: Id[],
+    fn: (e: AnyEvent, key: TrackKey) => AnyEvent,
+    keys?: (key: TrackKey) => boolean,
+  ): TrackEdit =>
   (events, key) => {
     const set = new Set(ids);
     if ((keys && !keys(key)) || !has(events, set)) return events;
-    return events.map((e) => (set.has(e.id) ? fn(e) : e));
+    return events.map((e) => (set.has(e.id) ? fn(e, key) : e));
   };
 
 export const addEvents = (chart: Chart, ownerId: Id, layerId: Id | null, items: EventItem[]) =>
@@ -492,3 +504,246 @@ export const moveEvents = (chart: Chart, ownerId: Id, layerId: Id | null, ids: I
     start: add(e.start, dBeat),
     end: add(e.end, dBeat),
   }));
+
+const isRangeKey = (key: TrackKey) =>
+  key === 'active' || key === 'visible' || key === 'font' || key === 'start';
+
+// Sets each selected event's `from` to the preceding event's `to` (chaining front-to-back).
+export const stickEvents = (chart: Chart, ownerId: Id, layerId: Id | null, ids: Id[]) => {
+  const set = new Set(ids);
+  return editEvents(chart, ownerId, layerId, (events, key) => {
+    if (isRangeKey(key) || !has(events, set)) return events;
+    const out = [...events];
+    let changed = false;
+    for (let i = 1; i < out.length; i++) {
+      if (!set.has(out[i].id) || (set.size > 1 && out[i].locked)) continue;
+      const from = out[i - 1].to;
+      out[i] = out[i].locked ? { ...out[i], from, to: from } : { ...out[i], from };
+      changed = true;
+    }
+    return changed ? out : events;
+  });
+};
+
+// Swaps `from` and `to` on each selected event.
+export const swapEvents = (chart: Chart, ownerId: Id, layerId: Id | null, ids: Id[]) =>
+  editEvents(
+    chart,
+    ownerId,
+    layerId,
+    mapIds(
+      ids,
+      (e) => (e.locked ? e : { ...e, from: e.to, to: e.from }),
+      (key) => !isRangeKey(key),
+    ),
+  );
+
+const roundNum = (key: TrackKey, v: number) =>
+  key === 'alpha' ? Math.max(0, Math.min(255, Math.round(v))) : Math.round(v * 1000) / 1000;
+
+const clampByte = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+
+// Extrapolates `from` and `to` from the preceding two events on the same track.
+export const passEvents = (chart: Chart, ownerId: Id, layerId: Id | null, ids: Id[]) => {
+  const set = new Set(ids);
+  return editEvents(chart, ownerId, layerId, (events, key) => {
+    if (isRangeKey(key) || key === 'value' || !has(events, set)) return events;
+    const out = [...events];
+    let changed = false;
+    for (let i = 1; i < out.length; i++) {
+      const cur = out[i];
+      if (!set.has(cur.id)) continue;
+      const b = out[i - 1];
+      const a = out[i - 2];
+      if (typeof b.from === 'number' && typeof b.to === 'number') {
+        const af = a && typeof a.from === 'number' ? a.from : undefined;
+        const at = a && typeof a.to === 'number' ? a.to : undefined;
+        const from = roundNum(key, af !== undefined ? 2 * b.from - af : b.to);
+        const to = cur.locked
+          ? from
+          : roundNum(key, at !== undefined ? 2 * b.to - at : 2 * b.to - b.from);
+        out[i] = { ...cur, from, to };
+        changed = true;
+      } else if (isColor(b.from) && isColor(b.to)) {
+        const bTo = b.to;
+        const bFrom = b.from;
+        const af = a && isColor(a.from) ? a.from : undefined;
+        const at = a && isColor(a.to) ? a.to : undefined;
+        const from = bFrom.map((v, k) => clampByte(af ? 2 * v - af[k] : bTo[k])) as Color;
+        const to = cur.locked
+          ? from
+          : (bTo.map((v, k) => clampByte(at ? 2 * v - at[k] : 2 * v - bFrom[k])) as Color);
+        out[i] = { ...cur, from, to };
+        changed = true;
+      }
+    }
+    return changed ? out : events;
+  });
+};
+
+const randInt = (lo: number, hi: number) => Math.floor(lo + Math.random() * (hi - lo + 1));
+
+function randomValue(key: TrackKey): number | Color {
+  if (key === 'color') return [randInt(0, 255), randInt(0, 255), randInt(0, 255)];
+  if (key === 'moveX') return randInt(-CANVAS_WIDTH / 2, CANVAS_WIDTH / 2);
+  if (key === 'moveY') return randInt(-CANVAS_HEIGHT / 2, CANVAS_HEIGHT / 2);
+  if (key === 'rotate') return randInt(-180, 180);
+  if (key === 'alpha') return randInt(0, 255);
+  if (key === 'speed') return Math.round(Math.random() * 100) / 10;
+  if (key === 'scaleX' || key === 'scaleY')
+    return Math.round((0.5 + Math.random() * 1.5) * 100) / 100;
+  return Math.round(Math.random() * 100) / 100;
+}
+
+// Randomizes `to` (or both when locked) within standard channel bounds.
+export const randomEvents = (chart: Chart, ownerId: Id, layerId: Id | null, ids: Id[]) =>
+  editEvents(
+    chart,
+    ownerId,
+    layerId,
+    mapIds(
+      ids,
+      (e, key) => {
+        const to = randomValue(key);
+        return e.locked ? { ...e, from: to, to } : { ...e, to };
+      },
+      (key) => !isRangeKey(key) && key !== 'value',
+    ),
+  );
+
+function cutBeats(start: Beat, end: Beat, division: number, playheadBeat: number): Beat[] {
+  const step: Beat = [0, 1, Math.max(1, division)];
+  const center = fromFloat(playheadBeat, Math.max(1, division));
+  if (cmp(center, start) > 0 && cmp(center, end) < 0) {
+    const before: Beat[] = [];
+    for (let b = sub(center, step); cmp(b, start) > 0; b = sub(b, step)) before.push(b);
+    const after: Beat[] = [];
+    for (let b = add(center, step); cmp(b, end) < 0; b = add(b, step)) after.push(b);
+    return [start, ...before.reverse(), center, ...after, end];
+  }
+  const out: Beat[] = [start];
+  for (let b = add(start, step); cmp(b, end) < 0; b = add(b, step)) out.push(b);
+  out.push(end);
+  return out;
+}
+
+function interpEventValue(e: AnyEvent, key: TrackKey, p: number): unknown {
+  if (typeof e.from === 'number' && typeof e.to === 'number') {
+    return roundNum(key, e.from + (e.to - e.from) * p);
+  }
+  if (isColor(e.from) && isColor(e.to)) {
+    const to = e.to;
+    return e.from.map((c, i) => clampByte(c + (to[i] - c) * p)) as Color;
+  }
+  if (typeof e.from === 'string' && typeof e.to === 'string') {
+    const a = e.from;
+    const b = e.to;
+    const q = Math.min(1, Math.max(0, p));
+    if (b.startsWith(a)) return b.slice(0, a.length + Math.floor((b.length - a.length) * q));
+    if (a.startsWith(b)) return a.slice(0, b.length + Math.ceil((a.length - b.length) * (1 - q)));
+    return a;
+  }
+  return e.from;
+}
+
+// Subdivides selected events into 1/division-beat linear segments along their easing curves.
+export const cutEvents = (
+  chart: Chart,
+  ownerId: Id,
+  layerId: Id | null,
+  ids: Id[],
+  division: number,
+  playheadBeat: number,
+  newIds?: Id[],
+) => {
+  const set = new Set(ids);
+  return editEvents(chart, ownerId, layerId, (events, key) => {
+    if (isRangeKey(key) || !has(events, set)) return events;
+    let changed = false;
+    const out = events.flatMap((e) => {
+      if (!set.has(e.id)) return [e];
+      const beats = cutBeats(e.start, e.end, division, playheadBeat);
+      if (beats.length <= 2) {
+        newIds?.push(e.id);
+        return [e];
+      }
+      changed = true;
+      const s0 = toFloat(e.start);
+      const span = toFloat(e.end) - s0;
+      const valAt = (i: number) => {
+        if (i === 0 || e.locked) return e.from;
+        if (i === beats.length - 1) return e.to;
+        return interpEventValue(e, key, ease(e.easing, (toFloat(beats[i]) - s0) / span));
+      };
+      return beats.slice(0, -1).map((start, i): AnyEvent => {
+        const id = i === 0 ? e.id : createId();
+        newIds?.push(id);
+        const from = valAt(i);
+        const to = e.locked ? from : valAt(i + 1);
+        return { ...e, id, start, end: beats[i + 1], from, to, easing: { kind: 'preset', id: 1 } };
+      });
+    });
+    return changed ? out : events;
+  });
+};
+
+// Splits selected events into two at the playhead beat, preserving the curve via easing clip.
+export const splitEvents = (
+  chart: Chart,
+  ownerId: Id,
+  layerId: Id | null,
+  ids: Id[],
+  division: number,
+  playheadBeat: number,
+  newIds?: Id[],
+) => {
+  const set = new Set(ids);
+  const snapped = fromFloat(playheadBeat, Math.max(1, division));
+  const raw = fromFloat(playheadBeat, 960);
+  return editEvents(chart, ownerId, layerId, (events, key) => {
+    if (isRangeKey(key) || !has(events, set)) return events;
+    let changed = false;
+    const out = events.flatMap((e): AnyEvent[] => {
+      if (!set.has(e.id)) return [e];
+      const split =
+        cmp(snapped, e.start) > 0 && cmp(snapped, e.end) < 0
+          ? snapped
+          : cmp(raw, e.start) > 0 && cmp(raw, e.end) < 0
+            ? raw
+            : null;
+      if (!split) {
+        newIds?.push(e.id);
+        return [e];
+      }
+      changed = true;
+      const t0 = beatToSeconds(chart.bpmList, toFloat(e.start));
+      const t1 = beatToSeconds(chart.bpmList, toFloat(e.end));
+      const ts = beatToSeconds(chart.bpmList, toFloat(split));
+      const progress = t1 > t0 ? (ts - t0) / (t1 - t0) : 0.5;
+      const mid = e.locked ? e.from : interpEventValue(e, key, ease(e.easing, progress));
+      const id2 = createId();
+      newIds?.push(e.id, id2);
+      if (e.easing.kind === 'preset') {
+        const [l, r] = e.easing.clip ?? [0, 1];
+        const m = Math.round((l + (r - l) * progress) * 10000) / 10000;
+        const e1: Easing =
+          l === 0 && m === 1
+            ? { kind: 'preset', id: e.easing.id }
+            : { kind: 'preset', id: e.easing.id, clip: [l, m] };
+        const e2: Easing =
+          m === 0 && r === 1
+            ? { kind: 'preset', id: e.easing.id }
+            : { kind: 'preset', id: e.easing.id, clip: [m, r] };
+        return [
+          { ...e, end: split, to: mid, easing: e1 },
+          { ...e, id: id2, start: split, from: mid, easing: e2 },
+        ];
+      }
+      return [
+        { ...e, end: split, to: mid, easing: { kind: 'preset', id: 1 } },
+        { ...e, id: id2, start: split, from: mid },
+      ];
+    });
+    return changed ? out : events;
+  });
+};
