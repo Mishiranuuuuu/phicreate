@@ -33,6 +33,15 @@ export class GridGeometry {
   beatToY = (beat: number) => this.judgeY - (beat - this.beat) * this.pxPerBeat;
   yToBeat = (y: number) => this.beat + (this.judgeY - y) / this.pxPerBeat;
 
+  // CSS zoom scales getBoundingClientRect() while width/height stay in local CSS pixels.
+  point(canvas: HTMLCanvasElement, e: { clientX: number; clientY: number }): [number, number] {
+    const r = canvas.getBoundingClientRect();
+    return [
+      ((e.clientX - r.left) * this.width) / (r.width || 1),
+      ((e.clientY - r.top) * this.height) / (r.height || 1),
+    ];
+  }
+
   get noteWidth() {
     return (NOTE_WIDTH / CANVAS_WIDTH) * (this.x1 - this.x0);
   }
