@@ -13,10 +13,10 @@
     background var(--t-fast),
     border-color var(--t-fast);
 }
-.card:hover {
+.card:not([data-selected]):hover {
   background: var(--c-raised);
 }
-.card[aria-selected='true'] {
+.card[data-selected] {
   background: var(--c-accent-soft);
   border-color: var(--c-accent);
 }
@@ -24,15 +24,43 @@
 .thumb {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 64px;
+  height: 64px;
   flex-shrink: 0;
   border-radius: var(--r-md);
   background: var(--c-raised);
   color: var(--c-text-muted);
+  overflow: hidden;
+  transition:
+    width var(--t-fast),
+    height var(--t-fast);
 }
-.card[aria-selected='true'] .thumb {
+.card[data-selected] .thumb {
+  width: 96px;
+  height: 96px;
   color: var(--c-accent);
+}
+
+.thumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-width: 0;
 }
 
 .info {
@@ -57,7 +85,7 @@
   font-size: var(--fs-xs);
   color: var(--c-text-muted);
 }
-.card[aria-selected='true'] .difficulty {
+.card[data-selected] .difficulty {
   background: var(--c-accent);
   color: var(--c-bg);
 }
@@ -94,6 +122,16 @@
   flex-shrink: 0;
   font-size: var(--fs-xs);
   color: var(--c-text-muted);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--c-border);
 }
 
 @media (max-width: 520px) {

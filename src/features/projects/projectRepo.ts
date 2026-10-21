@@ -13,7 +13,7 @@ import type {
 
 const ASSET_KINDS = ['audio', 'illustration'] as const;
 const assetKey = (id: string, kind: AssetKind) => `${id}:${kind}`;
-const range = (prefix: string) => IDBKeyRange.bound(prefix, `${prefix}￿`);
+const range = (prefix: string) => IDBKeyRange.bound(prefix, `${prefix}\uffff`);
 const mediaPrefix = (id: string) => `${id}:media:`;
 const mediaRange = (id: string) => range(mediaPrefix(id));
 const shaderPrefix = (id: string) => `${id}:shader:`;
@@ -118,6 +118,11 @@ export const projectRepo = {
   async saveChart(id: string, chart: Chart) {
     const db = await getDB();
     await db.put('charts', chart, id);
+  },
+
+  async getAsset(id: string, kind: AssetKind): Promise<Blob | undefined> {
+    const db = await getDB();
+    return db.get('assets', assetKey(id, kind));
   },
 
   async putAsset(id: string, kind: AssetKind, blob: Blob) {

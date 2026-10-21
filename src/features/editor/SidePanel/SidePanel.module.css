@@ -222,3 +222,66 @@ span.bpmBeat {
   font-size: var(--fs-xs);
   white-space: pre-wrap;
 }
+
+.toolGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+}
+
+.toolGrid button {
+  padding: 0 var(--sp-1);
+}
+
+.sampleBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-top: var(--sp-1);
+  padding: var(--sp-2);
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+}
+
+.sampleValue {
+  width: 48px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.curveBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+}
+
+.curveSvg {
+  width: 100%;
+  height: 120px;
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+}
+
+.clipRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+
+.clipRow input[type='range'] {
+  flex: 1;
+  accent-color: var(--c-accent);
+  cursor: pointer;
+}
+
+.clipValue {
+  width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

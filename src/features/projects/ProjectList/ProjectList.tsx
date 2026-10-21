@@ -7,9 +7,18 @@ interface ProjectListProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onOpen: (id: string) => void;
+  onManage: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
-export function ProjectList({ projects, selectedId, onSelect, onOpen }: ProjectListProps) {
+export function ProjectList({
+  projects,
+  selectedId,
+  onSelect,
+  onOpen,
+  onManage,
+  onDelete,
+}: ProjectListProps) {
   return (
     <ul className={styles.list} role="listbox" aria-label="Projects">
       {projects.map((p) => (
@@ -19,6 +28,14 @@ export function ProjectList({ projects, selectedId, onSelect, onOpen }: ProjectL
             selected={p.id === selectedId}
             onSelect={() => onSelect(p.id)}
             onOpen={() => onOpen(p.id)}
+            onManage={() => {
+              onSelect(p.id);
+              onManage(p.id);
+            }}
+            onDelete={() => {
+              onSelect(p.id);
+              onDelete(p.id);
+            }}
           />
         </li>
       ))}

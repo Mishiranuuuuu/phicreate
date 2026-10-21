@@ -222,9 +222,7 @@ export function EventGrid() {
   const pointerAt = (e: React.PointerEvent): Pointer | null => {
     const g = geoRef.current;
     if (!g) return null;
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
+    const [px, py] = g.point(canvasRef.current!, e);
     const beatF = g.yToBeat(py);
     const { division, snapY } = useEditorStore.getState();
     let beat = fromFloat(beatF, snapY && !e.altKey ? division : FREE_DENSITY);

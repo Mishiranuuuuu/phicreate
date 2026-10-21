@@ -102,6 +102,9 @@ function cubicBezier(t: number, [x1, y1, x2, y2]: [number, number, number, numbe
   return at((lo + hi) / 2, y1, y2);
 }
 
+// Unclipped preset curve in 0–1.
+export const rawCurve = (id: number, t: number) => (CURVES[id - 1] ?? CURVES[0])(t);
+
 // Maps progress 0–1 through an easing (with optional clip).
 export function ease(easing: Easing, t: number) {
   if (easing.kind === 'bezier') return cubicBezier(t, easing.points);

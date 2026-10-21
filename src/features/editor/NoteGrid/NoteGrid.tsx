@@ -128,9 +128,7 @@ export function NoteGrid() {
   const pointerAt = (e: React.PointerEvent): Pointer | null => {
     const g = geoRef.current;
     if (!g) return null;
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
+    const [px, py] = g.point(canvasRef.current!, e);
     const { division, lanes, snapX: snap, snapY } = useEditorStore.getState();
     const beatF = g.yToBeat(py);
     const xF = g.pxToX(px);
