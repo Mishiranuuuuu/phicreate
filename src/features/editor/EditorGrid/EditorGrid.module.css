@@ -25,6 +25,13 @@
   outline: 1px solid var(--c-border);
 }
 
+.stageFullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #000;
+}
+
 .clipboard {
   position: absolute;
   left: var(--sp-2);

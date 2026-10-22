@@ -7,19 +7,21 @@ import styles from './EditorGrid.module.css';
 
 export function EditorGrid() {
   const mode = useEditorStore((s) => s.mode);
+  const fullscreen = useEditorStore((s) => s.fullscreen);
   const previewBehind = useEditorStore((s) => s.previewBehind);
   const activeGrid = useEditorStore((s) => s.activeGrid);
   // Text and media objects have no notes.
   const objectOnly = useEditorStore((s) => s.selectedObjectId !== null);
-  const showPreview = mode === 'preview' || previewBehind;
+  const showPreview = fullscreen || mode === 'preview' || previewBehind;
+  const showEdit = !fullscreen && mode === 'edit';
 
   return (
     <section className={styles.grid}>
       <div className={styles.stageArea}>
-        <div className={styles.stage}>
-          {mode === 'edit' && <ClipboardReminder />}
+        <div className={fullscreen ? styles.stageFullscreen : styles.stage}>
+          {showEdit && <ClipboardReminder />}
           {showPreview && <PreviewCanvas />}
-          {mode === 'edit' && (
+          {showEdit && (
             <div className={objectOnly ? styles.splitCentered : styles.split}>
               {!objectOnly && (
                 <div className={activeGrid === 'notes' ? styles.halfActive : styles.half}>

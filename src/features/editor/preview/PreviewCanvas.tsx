@@ -66,14 +66,14 @@ export function PreviewCanvas() {
       // Preview only: none under the editing grid.
       const showHits =
         settings.hitEffects === 'always' ||
-        (settings.hitEffects === 'preview' && editor.mode !== 'edit');
+        (settings.hitEffects === 'preview' && (editor.mode !== 'edit' || editor.fullscreen));
 
       ctx.setTransform(size.dpr, 0, 0, size.dpr, 0, 0);
       ctx.clearRect(0, 0, size.w, size.h);
       drawPreview(ctx, size.w, size.h, chart, t, {
         effectsSince: showHits ? effectsSince : Infinity,
         hiddenLines: hiddenLines(chart),
-        aspect: editor.aspect,
+        aspect: editor.fullscreen && size.h > 0 ? size.w / size.h : editor.aspect,
         fov: editor.fov,
         selectedLineId: editor.selectedLineId,
         selectedObjectId: editor.selectedObjectId,

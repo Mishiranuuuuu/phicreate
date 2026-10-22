@@ -120,7 +120,11 @@ const constant = <T>(start: Beat, end: Beat, v: T): Event<T> => ({
 });
 
 // Before its first event an RPE track holds that event's start; PhiCreate holds the default.
-function leadIn<T>(list: Event<T>[], fallback: T, same = (a: T, b: T) => a === b): Event<T>[] {
+export function leadIn<T>(
+  list: Event<T>[],
+  fallback: T,
+  same = (a: T, b: T) => a === b,
+): Event<T>[] {
   const first = list[0];
   if (!first || cmp(first.start, ZERO) <= 0 || same(first.from, fallback)) return list;
   return [constant(ZERO, first.start, first.from), ...list];

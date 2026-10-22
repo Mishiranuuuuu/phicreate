@@ -515,3 +515,4 @@ export function renderNoiseEffect(
   effect.render(ctx, groups, frame, time);
   return true;
 }
+

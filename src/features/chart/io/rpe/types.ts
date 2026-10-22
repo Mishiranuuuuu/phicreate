@@ -84,6 +84,9 @@ export interface RpeMeta {
 // rpe-next noise area (block area): RPE units and beats, segment events per axis.
 export interface RpeNoiseEvent extends RpeEvent {
   anchor?: { x: number; y: number };
+  transformStart?: number;
+  transformEnd?: number;
+  transformStep?: boolean;
 }
 
 export interface RpeNoiseArea {

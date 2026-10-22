@@ -9,6 +9,7 @@ interface EditorState {
   projectName: string;
   difficulty: string;
   mode: EditorMode;
+  fullscreen: boolean;
   activeGrid: ActiveGrid;
   division: number;
   pxPerBeat: number;
@@ -60,6 +61,7 @@ const initial = {
   projectName: '',
   difficulty: '',
   mode: 'edit' as EditorMode,
+  fullscreen: false,
   activeGrid: 'notes' as ActiveGrid,
   division: 4,
   pxPerBeat: 160,

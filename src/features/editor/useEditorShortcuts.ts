@@ -86,9 +86,23 @@ export function useEditorShortcuts() {
         editor.set({ mode: 'preview' });
       } else if (key === 'p') {
         editor.set({ mode: 'edit' });
+      } else if (key === 'f') {
+        e.preventDefault();
+        const next = !editor.fullscreen;
+        editor.set({ fullscreen: next });
+        if (next) {
+          void document.documentElement.requestFullscreen?.().catch(() => {});
+        } else if (document.fullscreenElement) {
+          void document.exitFullscreen?.().catch(() => {});
+        }
       } else if (key === 'escape') {
-        // Clears a selection first; with none, closes the object properties.
-        if (editor.selectedNoteIds.length || editor.selectedEventIds.length) {
+        // Exits fullscreen first, then clears selection, then closes object properties.
+        if (editor.fullscreen) {
+          editor.set({ fullscreen: false });
+          if (document.fullscreenElement) {
+            void document.exitFullscreen?.().catch(() => {});
+          }
+        } else if (editor.selectedNoteIds.length || editor.selectedEventIds.length) {
           editor.selectNotes([]);
           editor.selectEvents([]);
         } else {
@@ -96,7 +110,16 @@ export function useEditorShortcuts() {
         }
       }
     };
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement && useEditorStore.getState().fullscreen) {
+        useEditorStore.getState().set({ fullscreen: false });
+      }
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+    };
   }, []);
 }
