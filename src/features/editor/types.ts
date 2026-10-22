@@ -73,6 +73,7 @@ export interface NoteDefaults {
   alpha: number;
   size: number;
   yOffset: number;
+  visibleTime: number;
   above: boolean;
   fake: boolean;
 }

@@ -1,6 +1,6 @@
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/features/chart/model/defaults';
 import { toCss } from '@/features/chart/model/color';
-import type { Chart, MediaFit, TextObject } from '@/features/chart/model/types';
+import type { Chart, Color, MediaFit, TextObject } from '@/features/chart/model/types';
 import {
   createSampler,
   isNoteVisible,
@@ -506,14 +506,14 @@ function drawNote(
   ctx.globalAlpha = Math.min(1, n.alpha);
 
   if (entry.note.type === 'hold') {
-    drawHold(ctx, x, head, -n.tail * scale, width, highlight, n.showHead);
+    drawHold(ctx, x, head, -n.tail * scale, width, highlight, n.showHead, entry.note.tint);
   } else if (n.showHead) {
-    const img = headImage(entry.note.type, highlight);
+    const img = headImage(entry.note.type, highlight, entry.note.tint);
     if (img) {
-      const h = Math.max(5, (width * img.naturalHeight) / img.naturalWidth);
+      const h = Math.max(5, (width * img.height) / img.width);
       ctx.drawImage(img, x - width / 2, head - h / 2, width, h);
     } else {
-      ctx.fillStyle = FALLBACK_COLORS[entry.note.type];
+      ctx.fillStyle = entry.note.tint ? toCss(entry.note.tint) : FALLBACK_COLORS[entry.note.type];
       ctx.fillRect(x - width / 2, head - 2, width, 4);
     }
   }
@@ -528,28 +528,29 @@ function drawHold(
   width: number,
   highlight: boolean,
   showHead: boolean,
+  tint?: Color,
 ) {
-  const { body, end, head: headImg } = holdImages(highlight);
+  const { body, end, head: headImg } = holdImages(highlight, tint);
   const length = Math.abs(tail - head);
   if (!body) {
-    ctx.fillStyle = FALLBACK_COLORS.hold;
+    ctx.fillStyle = tint ? toCss(tint) : FALLBACK_COLORS.hold;
     ctx.globalAlpha *= 0.55;
     ctx.fillRect(x - width / 2, Math.min(head, tail), width, length);
     return;
   }
-  const unit = width / body.naturalWidth;
+  const unit = width / body.width;
   ctx.save();
   ctx.translate(x, head);
   ctx.scale(1, tail <= head ? 1 : -1);
   ctx.drawImage(body, -width / 2, -length, width, Math.max(1, length));
   if (end) {
-    const w = end.naturalWidth * unit;
-    const h = end.naturalHeight * unit;
+    const w = end.width * unit;
+    const h = end.height * unit;
     ctx.drawImage(end, -w / 2, -length - h, w, h);
   }
   if (showHead && headImg) {
-    const w = headImg.naturalWidth * unit;
-    ctx.drawImage(headImg, -w / 2, 0, w, headImg.naturalHeight * unit);
+    const w = headImg.width * unit;
+    ctx.drawImage(headImg, -w / 2, 0, w, headImg.height * unit);
   }
   ctx.restore();
 }

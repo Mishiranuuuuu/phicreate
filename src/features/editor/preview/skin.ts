@@ -1,4 +1,4 @@
-import type { NoteType } from '@/features/chart/model/types';
+import type { Color, NoteType } from '@/features/chart/model/types';
 
 // Loaded once, drawn when ready.
 const BASE = `${import.meta.env.BASE_URL}assets/phigros/Texture/`;
@@ -46,14 +46,22 @@ export function loadSkin() {
 
 export const getImage = (name: string) => images.get(name);
 
-export const headImage = (type: NoteType, highlight: boolean) =>
-  images.get(HEADS[type][highlight ? 1 : 0]);
+const hasTint = (tint?: Color): tint is Color =>
+  !!tint && (tint[0] !== 255 || tint[1] !== 255 || tint[2] !== 255);
 
-export const holdImages = (highlight: boolean) => ({
-  body: images.get(highlight ? 'HoldBodyHL' : 'HoldBody'),
-  end: images.get(highlight ? 'HoldTailHL' : 'HoldTail'),
-  head: images.get(highlight ? 'HoldHeadHL' : 'HoldHead'),
-});
+export const headImage = (type: NoteType, highlight: boolean, tint?: Color) => {
+  const name = HEADS[type][highlight ? 1 : 0];
+  return hasTint(tint) ? tinted(name, tint) : images.get(name);
+};
+
+export const holdImages = (highlight: boolean, tint?: Color) => {
+  const get = (name: string) => (hasTint(tint) ? tinted(name, tint) : images.get(name));
+  return {
+    body: get(highlight ? 'HoldBodyHL' : 'HoldBody'),
+    end: get(highlight ? 'HoldTailHL' : 'HoldTail'),
+    head: get(highlight ? 'HoldHeadHL' : 'HoldHead'),
+  };
+};
 
 // Multiplies a texture by a color (cached).
 export function tinted(name: string, [r, g, b]: [number, number, number]) {

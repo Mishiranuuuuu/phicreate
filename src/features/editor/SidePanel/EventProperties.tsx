@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui';
 import { cmp, format, parse, toFloat } from '@/features/chart/model/beat';
 import { isColor, parseColor, toHex } from '@/features/chart/model/color';
@@ -38,7 +38,7 @@ import { playback } from '../playback/playback';
 import { beatToMusicTime, musicTimeToBeat } from '../time';
 import { useEditorStore } from '../useEditorStore';
 import { EasingSelect } from './EasingSelect';
-import { Check, Row } from './fields';
+import { Check, ColorPicker, Row } from './fields';
 import styles from './SidePanel.module.css';
 
 // Edits the selected events; mixed values show blank and apply to all on commit.
@@ -657,18 +657,4 @@ function ColorSample({
         ))}
     </div>
   );
-}
-
-// Native picker; commits once when the picker closes, not on every drag. Remount (key) to reset.
-function ColorPicker({ value, onCommit }: { value: string; onCommit: (hex: string) => void }) {
-  const ref = useRef<HTMLInputElement>(null);
-  const commitRef = useRef(onCommit);
-  commitRef.current = onCommit;
-  useEffect(() => {
-    const el = ref.current!;
-    const onChange = () => commitRef.current(el.value);
-    el.addEventListener('change', onChange);
-    return () => el.removeEventListener('change', onChange);
-  }, []);
-  return <input ref={ref} type="color" defaultValue={value} />;
 }

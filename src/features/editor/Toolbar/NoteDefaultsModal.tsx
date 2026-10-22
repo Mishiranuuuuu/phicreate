@@ -19,7 +19,15 @@ const SIDE_OPTIONS = [
   { value: 'below', label: 'Below' },
 ];
 
-const INITIAL: NoteDefaults = { speed: 1, alpha: 255, size: 1, yOffset: 0, above: true, fake: false };
+const INITIAL: NoteDefaults = {
+  speed: 1,
+  alpha: 255,
+  size: 1,
+  yOffset: 0,
+  visibleTime: Infinity,
+  above: true,
+  fake: false,
+};
 
 interface NumberFieldProps {
   label: string;
@@ -43,6 +51,41 @@ function NumberField({ label, value, min, max = Infinity, onCommit }: NumberFiel
     <TextField
       label={label}
       value={draft}
+      inputMode="decimal"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+    />
+  );
+}
+
+function VisibleTimeField({
+  value,
+  onCommit,
+}: {
+  value: number;
+  onCommit: (v: number) => void;
+}) {
+  const format = (v: number) => (Number.isFinite(v) ? String(v) : '');
+  const [draft, setDraft] = useState(format(value));
+  useEffect(() => setDraft(format(value)), [value]);
+
+  const commit = () => {
+    const s = draft.trim();
+    if (!s || s === '∞') {
+      onCommit(Infinity);
+      return;
+    }
+    const v = parseNumber(s);
+    if (v === null || v < 0) return setDraft(format(value));
+    onCommit(v >= 999999 ? Infinity : v);
+  };
+
+  return (
+    <TextField
+      label="Visible time (s)"
+      value={draft}
+      placeholder="∞"
       inputMode="decimal"
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
@@ -91,6 +134,10 @@ export function NoteDefaultsModal({ open, onClose }: NoteDefaultsModalProps) {
                 onCommit={(v) => update({ [f.key]: v })}
               />
             ))}
+            <VisibleTimeField
+              value={defaults.visibleTime}
+              onCommit={(visibleTime) => update({ visibleTime })}
+            />
           </div>
           <Select
             label="Side"
