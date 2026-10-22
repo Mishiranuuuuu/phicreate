@@ -1,4 +1,5 @@
 import { memo, useCallback, useState, type ReactNode } from 'react';
+import { EyeIcon, EyeOffIcon, LockIcon, UnlockIcon } from '@/components/ui';
 import { add, fromFloat } from '@/features/chart/model/beat';
 import {
   addEffect,
@@ -6,6 +7,7 @@ import {
   addMedia,
   addNoiseField,
   addText,
+  patchLineDisplay,
   removeEffect,
   removeLine,
   removeMedia,
@@ -29,7 +31,10 @@ import styles from './ObjectsSidebar.module.css';
 
 // Order: judge lines, UI elements, text, media, shaders, noise fields.
 export function ObjectsSidebar() {
+  const [groupFilter, setGroupFilter] = useState('');
   const lines = useChartStore((s) => s.chart?.lines);
+  const lineGroups = useChartStore((s) => s.chart?.lineGroups);
+  const lineMeta = useChartStore((s) => s.chart?.editor.lines);
   const allTexts = useChartStore((s) => s.chart?.texts);
   const texts = allTexts?.filter((t) => !t.builtin);
   const uiTexts = allTexts?.filter((t) => t.builtin);
@@ -42,6 +47,11 @@ export function ObjectsSidebar() {
   const selectLine = useEditorStore((s) => s.selectLine);
   const selectObject = useEditorStore((s) => s.selectObject);
   const setEditor = useEditorStore((s) => s.set);
+
+  const activeGroupFilter = lineGroups?.some((g) => g.id === groupFilter) ? groupFilter : '';
+  const visibleLines = activeGroupFilter
+    ? lines?.filter((l) => l.groupId === activeGroupFilter)
+    : lines;
 
   const openLine = (id: string) => {
     selectLine(id);
@@ -57,12 +67,13 @@ export function ObjectsSidebar() {
 
   const addNewLine = () => {
     const line = createLine(`Line ${lines?.length ?? 0}`);
+    if (activeGroupFilter) line.groupId = activeGroupFilter;
     apply((c) => addLine(c, line));
     selectLine(line.id);
   };
 
   const removeSelectedLine = () => {
-    if (!selectedLineId || !lines) return;
+    if (!selectedLineId || !lines || lineMeta?.[selectedLineId]?.locked) return;
     const index = lines.findIndex((l) => l.id === selectedLineId);
     const next = lines[index + 1] ?? lines[index - 1] ?? null;
     apply((c) => removeLine(c, selectedLineId));
@@ -156,7 +167,7 @@ export function ObjectsSidebar() {
               <button
                 type="button"
                 title="Delete line"
-                disabled={!selectedLineId}
+                disabled={!selectedLineId || !!lineMeta?.[selectedLineId]?.locked}
                 onClick={removeSelectedLine}
               >
                 −
@@ -164,18 +175,74 @@ export function ObjectsSidebar() {
             </span>
           }
         >
-          {!lines?.length && <Empty>No judge line objects</Empty>}
+          {!!lineGroups?.length && (
+            <select
+              className={styles.groupFilter}
+              value={activeGroupFilter}
+              onChange={(e) => setGroupFilter(e.target.value)}
+            >
+              <option value="">All groups ({lines?.length ?? 0})</option>
+              {lineGroups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name} ({lines?.filter((l) => l.groupId === g.id).length ?? 0})
+                </option>
+              ))}
+            </select>
+          )}
+          {!visibleLines?.length && <Empty>No judge line objects</Empty>}
           <ul className={styles.list}>
-            {lines?.map((l) => (
-              <li
-                key={l.id}
-                className={l.id === selectedLineId ? styles.selected : undefined}
-                onClick={() => openLine(l.id)}
-              >
-                <span>{l.name}</span>
-                <span className={styles.count}>{l.notes.length}</span>
-              </li>
-            ))}
+            {visibleLines?.map((l) => {
+              const meta = lineMeta?.[l.id];
+              const hidden = !!meta?.hidden;
+              const locked = !!meta?.locked;
+              return (
+                <li
+                  key={l.id}
+                  className={l.id === selectedLineId ? styles.selected : undefined}
+                  onClick={() => openLine(l.id)}
+                >
+                  <span className={styles.itemLabel}>
+                    {meta?.color && (
+                      <span className={styles.swatch} style={{ background: meta.color }} />
+                    )}
+                    <span className={hidden ? styles.dimmed : undefined}>{l.name}</span>
+                  </span>
+                  <span className={styles.itemRight}>
+                    <button
+                      type="button"
+                      className={`${styles.rowAction} ${hidden ? styles.rowActionActive : ''}`}
+                      title={hidden ? 'Show line in preview' : 'Hide line in preview'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        apply((c) => patchLineDisplay(c, l.id, { hidden: !hidden }));
+                      }}
+                    >
+                      {hidden ? (
+                        <EyeOffIcon width={13} height={13} />
+                      ) : (
+                        <EyeIcon width={13} height={13} />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.rowAction} ${locked ? styles.rowActionActive : ''}`}
+                      title={locked ? 'Unlock line' : 'Lock line'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        apply((c) => patchLineDisplay(c, l.id, { locked: !locked }));
+                      }}
+                    >
+                      {locked ? (
+                        <LockIcon width={13} height={13} />
+                      ) : (
+                        <UnlockIcon width={13} height={13} />
+                      )}
+                    </button>
+                    <span className={styles.count}>{l.notes.length}</span>
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </Category>
 

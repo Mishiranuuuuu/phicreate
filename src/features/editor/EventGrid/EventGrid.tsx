@@ -15,6 +15,7 @@ import {
 } from '@/features/chart/model/types';
 import {
   addEvent,
+  isLineLocked,
   moveEvents,
   removeEvents,
   retimeEvents,
@@ -105,10 +106,12 @@ export function EventGrid() {
       editor.snapY ? editor.division : 1,
       cols.map((_, i) => ({ px: g.x0 + i * w, strong: true })),
       editor.previewBehind ? GRID_BACKDROP : 1,
+      chart.timeTags,
     );
 
     if (!target) return;
     const { owner, layer } = target;
+    const locked = isLineLocked(chart, owner.id);
     const events = ownerEvents(owner, layer);
     const drag = dragRef.current;
 
@@ -168,7 +171,7 @@ export function EventGrid() {
         palette,
         drag.points.map((q) => [q.px, g.beatToY(q.beat)]),
       );
-    } else if (pending) {
+    } else if (pending && !locked) {
       ghost(
         pending.column,
         pending.beat,
@@ -177,7 +180,7 @@ export function EventGrid() {
     }
 
     const count = events.length;
-    const label = `${count} event${count === 1 ? '' : 's'} on ${(layer ?? owner).name}`;
+    const label = `${count} event${count === 1 ? '' : 's'} on ${(layer ?? owner).name}${locked ? ' · locked' : ''}`;
     drawHeader(ctx, g, palette, label);
     // Footer: column names with this layer's value at the playhead.
     const t = beatToSeconds(chart.bpmList, g.beat);
@@ -200,6 +203,9 @@ export function EventGrid() {
       const hover = hoverRef.current;
       const key = e.key.toLowerCase();
       if ((key !== 'r' && key !== 'q') || !hover || e.repeat) return;
+      const chart = useChartStore.getState().chart;
+      const target = currentTarget(chart);
+      if (!chart || !target || isLineLocked(chart, target.owner.id)) return;
       // Q: one-press locked event at the cursor.
       if (key === 'q') {
         const { division } = useEditorStore.getState();
@@ -264,10 +270,12 @@ export function EventGrid() {
     const editor = useEditorStore.getState();
     const charts = useChartStore.getState();
     const target = currentTarget(charts.chart);
-    if (!p || !target || outsideGrid(geoRef.current!, p.py)) return;
+    if (!p || !target || !charts.chart || outsideGrid(geoRef.current!, p.py)) return;
+    const locked = isLineLocked(charts.chart, target.owner.id);
     e.currentTarget.setPointerCapture(e.pointerId);
 
     if (e.button === 2) {
+      if (locked) return;
       const hit = hitTest(p);
       if (hit) {
         charts.apply((c) => removeEvents(c, target.owner.id, target.layerId, [hit.event.id]));
@@ -288,7 +296,7 @@ export function EventGrid() {
           : { kind: 'box', b0: p.beatF, c0: p.column, b1: p.beatF, c1: p.column, base };
       return;
     }
-    if (hit.edge) {
+    if (hit.edge && !locked) {
       editor.selectEvents([hit.event.id]);
       dragRef.current = {
         kind: 'resize',
@@ -308,7 +316,7 @@ export function EventGrid() {
         ? [...selected, hit.event.id]
         : [hit.event.id];
     editor.selectEvents(ids);
-    dragRef.current = { kind: 'move', start: p.beat, dBeat: ZERO, ids };
+    if (!locked) dragRef.current = { kind: 'move', start: p.beat, dBeat: ZERO, ids };
   };
 
   const onPointerMove = (e: React.PointerEvent) => {

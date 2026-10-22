@@ -1,3 +1,5 @@
+import { toFloat } from '@/features/chart/model/beat';
+import type { TimeTag } from '@/features/chart/model/types';
 import type { GridGeometry } from './geometry';
 
 export interface Palette {
@@ -64,7 +66,7 @@ export interface Vertical {
   strong?: boolean;
 }
 
-// Backdrop, vertical guides, beat lines and the playhead (judge line).
+// Backdrop, vertical guides, beat lines, time tags and the playhead (judge line).
 export function drawTimeGrid(
   ctx: CanvasRenderingContext2D,
   g: GridGeometry,
@@ -73,6 +75,7 @@ export function drawTimeGrid(
   verticals: Vertical[],
   // < 1 lets the gameplay preview show through.
   backdrop = 1,
+  timeTags?: TimeTag[],
 ) {
   ctx.clearRect(0, 0, g.width, g.height);
   ctx.globalAlpha = backdrop;
@@ -114,6 +117,28 @@ export function drawTimeGrid(
     }
   }
   ctx.globalAlpha = 1;
+
+  if (timeTags?.length) {
+    ctx.save();
+    ctx.strokeStyle = p.accent;
+    ctx.fillStyle = p.accent;
+    ctx.font = '600 10px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.setLineDash([4, 3]);
+    for (const tag of timeTags) {
+      const y = Math.round(g.beatToY(toFloat(tag.beat))) + 0.5;
+      if (y < 0 || y > g.height) continue;
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(g.x0, y);
+      ctx.lineTo(g.x1, y);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.fillText(tag.name, g.x0 + 4, y - 2);
+    }
+    ctx.restore();
+  }
 
   ctx.strokeStyle = p.accent;
   ctx.lineWidth = 2;

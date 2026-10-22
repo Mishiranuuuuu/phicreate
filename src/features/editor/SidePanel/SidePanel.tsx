@@ -5,7 +5,7 @@ import { Section } from './fields';
 import { ObjectProperties } from './ObjectProperties';
 import { MetadataPanel } from './MetadataPanel';
 import { NoteProperties } from './NoteProperties';
-import { TimingPanel } from './TimingPanel';
+import { LineGroupsPanel, TimingPanel } from './TimingPanel';
 import styles from './SidePanel.module.css';
 
 export function SidePanel() {
@@ -77,6 +77,7 @@ function Panel({
 const FEATURES: { id: string; label: string; panel: () => ReactNode }[] = [
   { id: 'metadata', label: 'Metadata', panel: () => <MetadataPanel /> },
   { id: 'timing', label: 'Timing & BPM', panel: () => <TimingPanel /> },
+  { id: 'groups', label: 'Line groups', panel: () => <LineGroupsPanel /> },
 ];
 
 // One feature expanded at a time.

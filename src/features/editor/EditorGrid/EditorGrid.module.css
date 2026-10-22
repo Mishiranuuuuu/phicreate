@@ -76,11 +76,6 @@
   min-width: 0;
   border-top: 2px solid transparent;
 }
-.half + .half,
-.half + .halfActive,
-.halfActive + .half {
-  border-left: 1px solid var(--c-border);
-}
 .halfActive {
   border-top-color: var(--c-accent);
 }

@@ -59,7 +59,9 @@
   margin-top: var(--sp-3);
 }
 
-.bpmList {
+.bpmList,
+.tagList,
+.groupList {
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
@@ -73,7 +75,21 @@
   align-items: center;
   gap: var(--sp-2);
 }
+.tagList li {
+  display: grid;
+  grid-template-columns: 64px 1fr 22px 22px;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.groupList li {
+  display: grid;
+  grid-template-columns: 1fr auto 22px;
+  align-items: center;
+  gap: var(--sp-2);
+}
 .bpmList input,
+.tagList input,
+.groupList input,
 .bpmBeat {
   min-width: 0;
   padding: 2px var(--sp-2);
@@ -189,12 +205,18 @@ span.bpmBeat {
   border-radius: var(--r-sm);
   color: var(--c-text);
 }
+.row input:disabled,
+.row select:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 .colorField {
   display: flex;
   align-items: center;
   gap: var(--sp-1);
 }
-.row .colorField input:not([type='color']) {
+.row .colorField input:not([type='color']),
+.row .colorField select {
   width: 92px;
 }
 .row .colorField input[type='color'] {
@@ -264,6 +286,15 @@ span.bpmBeat {
   background: var(--c-bg);
   border: 1px solid var(--c-border);
   border-radius: var(--r-sm);
+}
+
+.bezierHandle {
+  cursor: grab;
+  touch-action: none;
+}
+
+.bezierHandle:active {
+  cursor: grabbing;
 }
 
 .clipRow {

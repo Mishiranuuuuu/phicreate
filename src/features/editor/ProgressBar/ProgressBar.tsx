@@ -1,6 +1,7 @@
+import { format, toFloat } from '@/features/chart/model/beat';
 import { useChartStore } from '@/features/chart/runtime/useChartStore';
 import { useEditorStore } from '../useEditorStore';
-import { chartEndTime, formatTime, musicTimeToBeat } from '../time';
+import { beatToMusicTime, chartEndTime, formatTime, musicTimeToBeat } from '../time';
 import styles from './ProgressBar.module.css';
 
 // Fallback length when the project has no audio.
@@ -24,6 +25,29 @@ export function ProgressBar() {
           {formatTime(time)} / {formatTime(duration)}
         </span>
       </div>
+      {!!chart?.timeTags.length && (
+        <div className={styles.tagStrip}>
+          {chart.timeTags.map((tag) => {
+            const tagTime = beatToMusicTime(chart, toFloat(tag.beat));
+            if (tagTime < 0 || tagTime > duration || duration <= 0) return null;
+            return (
+              <button
+                key={tag.id}
+                type="button"
+                className={styles.tagPin}
+                style={{ left: `${(tagTime / duration) * 100}%` }}
+                title={`${tag.name} — Beat ${format(tag.beat)} (Ctrl+↑/↓)`}
+                onClick={() => {
+                  if (useEditorStore.getState().playing) pause();
+                  seek(tagTime);
+                }}
+              >
+                <span className={styles.tagMarker} />
+              </button>
+            );
+          })}
+        </div>
+      )}
       <input
         type="range"
         className={styles.seek}

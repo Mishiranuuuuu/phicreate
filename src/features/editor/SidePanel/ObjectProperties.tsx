@@ -1,8 +1,12 @@
 import { useState } from 'react';
+import { parseColor, toHex } from '@/features/chart/model/color';
 import {
   addLayer,
+  addLineGroup,
   findOwner,
+  isLineLocked,
   lineDescendants,
+  patchLineDisplay,
   patchNoiseField,
   patchOwner,
   removeLayer,
@@ -26,11 +30,12 @@ import {
 import { useChartStore } from '@/features/chart/runtime/useChartStore';
 import { fileName, withExt } from '@/features/library/fileNames';
 import { useLibraryStore } from '@/features/library/useLibraryStore';
+import { createId } from '@/lib/id';
 import { parseNumber } from '@/lib/number';
 import { getMedia, loadMedia, mediaKindOf } from '../preview/media';
 import { CommitInput } from '../CommitInput';
 import { useEditorStore } from '../useEditorStore';
-import { Check, Row, Section } from './fields';
+import { Check, ColorPicker, Row, Section } from './fields';
 import { ShaderProperties } from './ShaderProperties';
 import styles from './SidePanel.module.css';
 
@@ -55,6 +60,8 @@ export function ObjectProperties() {
   const media = isMedia(owner) ? owner : null;
   const line = isLine(owner) ? owner : null;
   const noise = isNoise(owner) ? owner : null;
+  const lineDisplay = line ? chart.editor.lines[line.id] : undefined;
+  const locked = line ? isLineLocked(chart, line.id) : false;
   // Owners with z order and anchor.
   const placed = isNoise(owner) ? null : owner;
   const ui = !!text?.builtin;
@@ -72,6 +79,18 @@ export function ObjectProperties() {
     patch({ anchor });
   };
   const blocked = line ? lineDescendants(chart.lines, line.id) : new Set<string>();
+
+  const commitTagColor = (text: string) => {
+    if (!line) return;
+    const s = text.trim();
+    if (!s) {
+      apply((c) => patchLineDisplay(c, line.id, { color: undefined }));
+      return;
+    }
+    const parsed = parseColor(s);
+    if (!parsed) return false;
+    apply((c) => patchLineDisplay(c, line.id, { color: toHex(parsed) }));
+  };
 
   return (
     <Section
@@ -92,6 +111,7 @@ export function ObjectProperties() {
           <Row label="Name">
             <CommitInput
               value={owner.name}
+              disabled={locked}
               onCommit={(name) => {
                 if (!name.trim()) return false;
                 patch({ name: name.trim() });
@@ -99,9 +119,42 @@ export function ObjectProperties() {
             />
           </Row>
         )}
+        {line && (
+          <>
+            <Check
+              label="Hidden in preview"
+              checked={!!lineDisplay?.hidden}
+              onChange={(hidden) =>
+                apply((c) => patchLineDisplay(c, line.id, { hidden: hidden || undefined }))
+              }
+            />
+            <Check
+              label="Locked"
+              checked={!!lineDisplay?.locked}
+              onChange={(isLocked) =>
+                apply((c) => patchLineDisplay(c, line.id, { locked: isLocked || undefined }))
+              }
+            />
+            <Row label="Tag color">
+              <span className={styles.colorField}>
+                <ColorPicker
+                  key={lineDisplay?.color ?? ''}
+                  value={lineDisplay?.color ?? '#39ff14'}
+                  onCommit={commitTagColor}
+                />
+                <CommitInput
+                  value={lineDisplay?.color ?? ''}
+                  placeholder="None"
+                  onCommit={commitTagColor}
+                />
+              </span>
+            </Row>
+          </>
+        )}
         <Row label="Parent line">
           <select
             value={owner.parentId ?? ''}
+            disabled={locked}
             onChange={(e) => patch({ parentId: e.target.value || null })}
           >
             <option value="">None</option>
@@ -126,19 +179,39 @@ export function ObjectProperties() {
             onChange={(isCover) => patch({ isCover })}
           />
         )}
-        {line && chart.lineGroups.length > 0 && (
+        {line && (
           <Row label="Group">
-            <select
-              value={line.groupId ?? ''}
-              onChange={(e) => patch({ groupId: e.target.value || null })}
-            >
-              <option value="">None</option>
-              {chart.lineGroups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
+            <span className={styles.colorField}>
+              <select
+                value={line.groupId ?? ''}
+                disabled={locked}
+                onChange={(e) => patch({ groupId: e.target.value || null })}
+              >
+                <option value="">None</option>
+                {chart.lineGroups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className={styles.inlineAction}
+                title="Create new line group"
+                disabled={locked}
+                onClick={() => {
+                  const id = createId();
+                  apply((c) => {
+                    const name = `Group ${c.lineGroups.length + 1}`;
+                    return patchOwner(addLineGroup(c, name, { id, name }), line.id, {
+                      groupId: id,
+                    });
+                  });
+                }}
+              >
+                +
+              </button>
+            </span>
           </Row>
         )}
         {placed && (
@@ -146,6 +219,7 @@ export function ObjectProperties() {
             <Row label="Z order">
               <CommitInput
                 value={String(placed.zOrder)}
+                disabled={locked}
                 inputMode="decimal"
                 onCommit={number('zOrder')}
               />
@@ -153,6 +227,7 @@ export function ObjectProperties() {
             <Row label="Anchor X">
               <CommitInput
                 value={String(placed.anchor[0])}
+                disabled={locked}
                 inputMode="decimal"
                 title="0 = left, 1 = right"
                 onCommit={anchorAt(0)}
@@ -161,6 +236,7 @@ export function ObjectProperties() {
             <Row label="Anchor Y">
               <CommitInput
                 value={String(placed.anchor[1])}
+                disabled={locked}
                 inputMode="decimal"
                 title="0 = bottom, 1 = top"
                 onCommit={anchorAt(1)}
@@ -180,7 +256,7 @@ export function ObjectProperties() {
         {media && <MediaFields media={media} />}
         {noise && <NoiseFields field={noise} />}
       </div>
-      <Layers ownerId={owner.id} />
+      <Layers ownerId={owner.id} locked={locked} />
     </Section>
   );
 }
@@ -324,7 +400,7 @@ function NoiseFields({ field }: { field: NoiseField }) {
   );
 }
 
-function Layers({ ownerId }: { ownerId: string }) {
+function Layers({ ownerId, locked }: { ownerId: string; locked?: boolean }) {
   const selectedLayerId = useEditorStore((s) => s.selectedLayerId);
   const selectLayer = useEditorStore((s) => s.selectLayer);
   const layers = useChartStore((s) => {
@@ -343,6 +419,7 @@ function Layers({ ownerId }: { ownerId: string }) {
           <button
             type="button"
             title="Add layer"
+            disabled={locked}
             onClick={() => apply((c) => addLayer(c, ownerId))}
           >
             +
@@ -359,7 +436,7 @@ function Layers({ ownerId }: { ownerId: string }) {
             <span>{y.name}</span>
             <span className={styles.count}>
               {CHANNELS.reduce((n, c) => n + y[c].length, 0)}
-              {i > 0 && (
+              {i > 0 && !locked && (
                 <button
                   type="button"
                   className={styles.inlineAction}

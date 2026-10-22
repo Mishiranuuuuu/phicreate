@@ -2,7 +2,13 @@ import { useEffect, useRef } from 'react';
 import { add, cmp, fromFloat, sub, toFloat, ZERO } from '@/features/chart/model/beat';
 import { CANVAS_WIDTH, createNote } from '@/features/chart/model/defaults';
 import type { Beat, JudgeLine, Note, NoteType } from '@/features/chart/model/types';
-import { addNotes, hasNoteAt, moveNotes, removeNotes } from '@/features/chart/runtime/commands';
+import {
+  addNotes,
+  hasNoteAt,
+  isLineLocked,
+  moveNotes,
+  removeNotes,
+} from '@/features/chart/runtime/commands';
 import { useChartStore } from '@/features/chart/runtime/useChartStore';
 import { useSettingsStore } from '@/features/settings/useSettingsStore';
 import { setHover } from '../grid/hover';
@@ -59,10 +65,12 @@ export function NoteGrid() {
       editor.snapY ? editor.division : 1,
       lanes,
       editor.previewBehind ? GRID_BACKDROP : 1,
+      chart.timeTags,
     );
 
     const line = currentLine(chart);
     if (!line) return drawChrome(ctx, g, palette, null);
+    const locked = isLineLocked(chart, line.id);
     const drag = dragRef.current;
     const selected = new Set(editor.selectedNoteIds);
     const moving = drag?.kind === 'move' ? new Set(drag.ids) : null;
@@ -93,12 +101,17 @@ export function NoteGrid() {
         palette,
         drag.points.map((q) => [g.xToPx(q.x), g.beatToY(q.beat)]),
       );
-    } else if (pending) {
+    } else if (pending && !locked) {
       const end = hover ? holdEnd(pending.beat, hover.beat, editor.division) : undefined;
       drawNote(ctx, g, ghostNote('hold', pending.beat, pending.x, editor.noteDefaults, end));
     }
     const total = chart.lines.reduce((n, l) => n + l.notes.length, 0);
-    drawChrome(ctx, g, palette, `${total} note${total === 1 ? '' : 's'} total`);
+    drawChrome(
+      ctx,
+      g,
+      palette,
+      `${total} note${total === 1 ? '' : 's'} total${locked ? ' · locked' : ''}`,
+    );
   };
 
   const geoRef = useGridCanvas(wrapRef, canvasRef, draw);
@@ -111,6 +124,9 @@ export function NoteGrid() {
       const type = PLACE_KEYS[e.key.toLowerCase()];
       const hover = hoverRef.current;
       if (!type || !hover || e.repeat) return;
+      const chart = useChartStore.getState().chart;
+      const line = currentLine(chart);
+      if (!chart || !line || isLineLocked(chart, line.id)) return;
       if (type !== 'hold') return placeNote(type, hover.beat, hover.x);
       const pending = pendingRef.current;
       if (!pending) {
@@ -154,10 +170,12 @@ export function NoteGrid() {
     const charts = useChartStore.getState();
     const editor = useEditorStore.getState();
     const line = currentLine(charts.chart);
-    if (!p || !line || outsideGrid(geoRef.current!, p.py)) return;
+    if (!p || !line || !charts.chart || outsideGrid(geoRef.current!, p.py)) return;
+    const locked = isLineLocked(charts.chart, line.id);
     e.currentTarget.setPointerCapture(e.pointerId);
 
     if (e.button === 2) {
+      if (locked) return;
       const hit = hitTest(line, p);
       if (hit) {
         charts.apply((c) => removeNotes(c, line.id, [hit.id]));
@@ -180,7 +198,7 @@ export function NoteGrid() {
           ? [...selected, hit.id]
           : [hit.id];
       editor.selectNotes(ids);
-      dragRef.current = { kind: 'move', start: p, dBeat: ZERO, dx: 0, ids };
+      if (!locked) dragRef.current = { kind: 'move', start: p, dBeat: ZERO, dx: 0, ids };
     } else {
       const base = e.shiftKey ? selected : [];
       editor.selectNotes(base);

@@ -127,6 +127,27 @@ export const EyeIcon = (p: IconProps) => (
   </svg>
 );
 
+export const EyeOffIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.5 0-10-7-10-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19" />
+    <path d="m2 2 20 20" />
+  </svg>
+);
+
+export const LockIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <rect x="4" y="11" width="16" height="10" rx="2" />
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+  </svg>
+);
+
+export const UnlockIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <rect x="4" y="11" width="16" height="10" rx="2" />
+    <path d="M8 11V7a4 4 0 0 1 7.8-1" />
+  </svg>
+);
+
 export const UploadIcon = (p: IconProps) => (
   <svg {...base} {...p}>
     <path d="M12 20V8M7 13l5-5 5 5M5 4h14" />

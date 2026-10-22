@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui';
 import { cmp, format, parse, toFloat } from '@/features/chart/model/beat';
 import { isColor, parseColor, toHex } from '@/features/chart/model/color';
@@ -40,6 +40,9 @@ import { useEditorStore } from '../useEditorStore';
 import { EasingSelect } from './EasingSelect';
 import { Check, ColorPicker, Row } from './fields';
 import styles from './SidePanel.module.css';
+
+type BezierPoints = [number, number, number, number];
+const DEFAULT_BEZIER: BezierPoints = [0.25, 0.1, 0.25, 1];
 
 // Edits the selected events; mixed values show blank and apply to all on commit.
 export function EventProperties() {
@@ -104,9 +107,11 @@ export function EventProperties() {
     events.every((e) => get(e) === get(events[0])) ? get(events[0]) : undefined;
   const show = (v: number | string | Color) => (isColor(v) ? toHex(v) : String(v));
   const single = selected.length === 1 ? selected[0] : null;
-  const easing = shared((e) => (e.easing.kind === 'preset' ? e.easing.id : -1));
+  const isBezier = shared((e) => e.easing.kind === 'bezier') ?? false;
+  const presetId = shared((e) => (e.easing.kind === 'preset' ? e.easing.id : -1));
   const clipL = shared((e) => (e.easing.kind === 'preset' ? (e.easing.clip?.[0] ?? 0) : 0)) ?? 0;
   const clipR = shared((e) => (e.easing.kind === 'preset' ? (e.easing.clip?.[1] ?? 1) : 1)) ?? 1;
+  const bezierKey = shared((e) => (e.easing.kind === 'bezier' ? e.easing.points.join(',') : ''));
 
   const set = <T,>(e: Event<T>, key: 'from' | 'to', v: T): Event<T> =>
     e.locked ? { ...e, from: v, to: v } : { ...e, [key]: v };
@@ -193,6 +198,9 @@ export function EventProperties() {
       return { ...e, easing: { kind: 'preset', id: e.easing.id, ...(clip && { clip }) } };
     });
 
+  const onCommitBezier = (points: BezierPoints) =>
+    retime((e) => ({ ...e, easing: { kind: 'bezier', points } }));
+
   return (
     <div className={styles.props}>
       <p className={styles.muted}>
@@ -258,8 +266,8 @@ export function EventProperties() {
           />
           <Row label="Easing">
             <EasingSelect
-              value={easing === -1 ? undefined : easing}
-              extra={easing === -1 ? 'Bézier' : undefined}
+              value={presetId && presetId > 0 ? presetId : undefined}
+              disabled={isBezier}
               onChange={(id) =>
                 retime((e) => ({
                   ...e,
@@ -272,6 +280,21 @@ export function EventProperties() {
               }
             />
           </Row>
+          <Check
+            label="Bézier easing"
+            checked={isBezier}
+            onChange={(bezier) =>
+              retime((e) => ({
+                ...e,
+                easing: bezier
+                  ? {
+                      kind: 'bezier',
+                      points: e.easing.kind === 'bezier' ? e.easing.points : DEFAULT_BEZIER,
+                    }
+                  : { kind: 'preset', id: useEditorStore.getState().eventEasing },
+              }))
+            }
+          />
         </>
       )}
 
@@ -365,17 +388,29 @@ export function EventProperties() {
 
       {!noCurve && (
         <EasingCurve
-          key={`${ids.join(',')}:${easing ?? 'm'}:${clipL}:${clipR}`}
+          key={`${ids.join(',')}:${presetId ?? 'm'}:${isBezier}:${clipL}:${clipR}:${bezierKey ?? 'm'}`}
           easing={events[0].easing}
-          presetId={easing && easing > 0 ? easing : undefined}
+          presetId={!isBezier && presetId && presetId > 0 ? presetId : undefined}
           clipL={clipL}
           clipR={clipR}
           onCommit={onCommitClip}
+          onCommitBezier={onCommitBezier}
         />
       )}
     </div>
   );
 }
+
+const parseBezierPoints = (text: string): BezierPoints | null => {
+  const parts = text
+    .trim()
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .map(parseNumber);
+  if (parts.length !== 4 || parts.some((v) => v === null)) return null;
+  const [x1, y1, x2, y2] = parts as number[];
+  return [Math.max(0, Math.min(1, x1)), y1, Math.max(0, Math.min(1, x2)), y2];
+};
 
 function EasingCurve({
   easing,
@@ -383,17 +418,26 @@ function EasingCurve({
   clipL,
   clipR,
   onCommit,
+  onCommitBezier,
 }: {
   easing: Easing;
   presetId: number | undefined;
   clipL: number;
   clipR: number;
   onCommit: (l: number, r: number) => void;
+  onCommitBezier: (points: BezierPoints) => void;
 }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragRef = useRef<0 | 1 | null>(null);
   const [range, setRange] = useState<[number, number]>([clipL, clipR]);
+  const [pts, setPts] = useState<BezierPoints>(
+    easing.kind === 'bezier' ? easing.points : DEFAULT_BEZIER,
+  );
   const [l, r] = range;
+  const isBezier = easing.kind === 'bezier';
   const id = presetId ?? (easing.kind === 'preset' ? easing.id : undefined);
-  const sample = (t: number) => (id ? rawCurve(id, t) : ease(easing, t));
+  const activeEasing: Easing = isBezier ? { kind: 'bezier', points: pts } : easing;
+  const sample = (t: number) => (id ? rawCurve(id, t) : ease(activeEasing, t));
 
   const steps = 64;
   const fullPts = Array.from({ length: steps + 1 }, (_, i) => {
@@ -410,9 +454,45 @@ function EasingCurve({
   const rx = r * 200;
   const ry = 100 - sample(r) * 100;
 
+  const updateHandle = (e: React.PointerEvent, index: 0 | 1) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    const p = svg.createSVGPoint();
+    p.x = e.clientX;
+    p.y = e.clientY;
+    const loc = p.matrixTransform(ctm.inverse());
+    const bx = Math.max(0, Math.min(1, Math.round((loc.x / 200) * 100) / 100));
+    const by = Math.max(-0.5, Math.min(1.5, Math.round(((100 - loc.y) / 100) * 100) / 100));
+    setPts((prev) => {
+      const next: BezierPoints = [...prev];
+      next[index * 2] = bx;
+      next[index * 2 + 1] = by;
+      return next;
+    });
+  };
+
   return (
     <div className={styles.curveBox}>
-      <svg className={styles.curveSvg} viewBox="-14 -20 228 140" aria-label="Easing curve">
+      <svg
+        ref={svgRef}
+        className={styles.curveSvg}
+        viewBox="-14 -20 228 140"
+        aria-label="Easing curve"
+        onPointerMove={(e) => {
+          if (dragRef.current !== null) updateHandle(e, dragRef.current);
+        }}
+        onPointerUp={() => {
+          if (dragRef.current !== null) {
+            dragRef.current = null;
+            onCommitBezier(pts);
+          }
+        }}
+        onPointerCancel={() => {
+          dragRef.current = null;
+        }}
+      >
         {/* Horizontal axis */}
         <path
           d="M 0 100 L 204 100 M 199 95 L 204 100 L 199 105"
@@ -421,7 +501,7 @@ function EasingCurve({
           strokeWidth="1.5"
         />
         {/* Full unclipped curve */}
-        {(l > 0 || r < 1) && (
+        {!isBezier && (l > 0 || r < 1) && (
           <polyline
             points={fullPts}
             fill="none"
@@ -455,9 +535,63 @@ function EasingCurve({
           stroke="var(--c-accent-hover)"
           strokeWidth="1.8"
         />
+        {/* Bézier control tangents and handles */}
+        {isBezier && (
+          <>
+            <line
+              x1={0}
+              y1={100}
+              x2={pts[0] * 200}
+              y2={100 - pts[1] * 100}
+              stroke="var(--c-text-muted)"
+              strokeWidth="1.2"
+              strokeDasharray="3 2"
+            />
+            <line
+              x1={200}
+              y1={0}
+              x2={pts[2] * 200}
+              y2={100 - pts[3] * 100}
+              stroke="var(--c-text-muted)"
+              strokeWidth="1.2"
+              strokeDasharray="3 2"
+            />
+            {([0, 1] as const).map((idx) => (
+              <circle
+                key={idx}
+                className={styles.bezierHandle}
+                cx={pts[idx * 2] * 200}
+                cy={100 - pts[idx * 2 + 1] * 100}
+                r={5.5}
+                fill="var(--c-accent)"
+                stroke="var(--c-surface)"
+                strokeWidth="1.5"
+                onPointerDown={(e) => {
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  dragRef.current = idx;
+                }}
+              />
+            ))}
+          </>
+        )}
       </svg>
 
-      {id !== undefined && (
+      {isBezier && (
+        <Row label="Control pts">
+          <CommitInput
+            value={pts.join(', ')}
+            title="x1, y1, x2, y2 (x in 0–1)"
+            onCommit={(text) => {
+              const parsed = parseBezierPoints(text);
+              if (!parsed) return false;
+              setPts(parsed);
+              onCommitBezier(parsed);
+            }}
+          />
+        </Row>
+      )}
+
+      {!isBezier && id !== undefined && (
         <>
           <label className={styles.clipRow}>
             <span>L</span>

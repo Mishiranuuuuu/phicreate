@@ -71,6 +71,17 @@ section:first-child .header {
   cursor: default;
 }
 
+.groupFilter {
+  width: 100%;
+  margin-bottom: var(--sp-1);
+  padding: 2px var(--sp-2);
+  background: var(--c-raised);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  color: var(--c-text);
+  font-size: var(--fs-xs);
+}
+
 .list {
   padding: 0;
   list-style: none;
@@ -80,6 +91,7 @@ section:first-child .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--sp-1);
   padding: var(--sp-1) var(--sp-2);
   border-radius: var(--r-sm);
   cursor: pointer;
@@ -92,7 +104,64 @@ section:first-child .header {
   color: var(--c-accent);
 }
 
+.itemLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.swatch {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.dimmed {
+  opacity: 0.5;
+}
+
+.itemRight {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.rowAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--c-text-muted);
+  opacity: 0;
+  cursor: pointer;
+}
+.list li:hover .rowAction {
+  opacity: 0.7;
+}
+.rowAction:hover {
+  opacity: 1 !important;
+  background: var(--c-raised);
+  color: var(--c-text);
+}
+.rowActionActive {
+  opacity: 1;
+  color: var(--c-accent);
+}
+
 .count {
+  min-width: 14px;
+  text-align: right;
   font-size: var(--fs-xs);
   color: var(--c-text-muted);
 }

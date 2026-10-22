@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { cmp, toFloat } from '@/features/chart/model/beat';
 import { removeEvents, removeNotes } from '@/features/chart/runtime/commands';
 import { useChartStore } from '@/features/chart/runtime/useChartStore';
 import { copySelection, pasteClipboard } from './clipboard';
@@ -51,6 +52,25 @@ export function useEditorShortcuts() {
       if (mod && key === 'v') {
         e.preventDefault();
         pasteClipboard();
+        return;
+      }
+      if (
+        mod &&
+        (key === 'arrowup' || key === 'arrowdown' || key === 'arrowleft' || key === 'arrowright')
+      ) {
+        e.preventDefault();
+        const chart = charts.chart;
+        if (!chart || !chart.timeTags.length) return;
+        const forward = key === 'arrowup' || key === 'arrowright';
+        const beat = musicTimeToBeat(chart, editor.time);
+        const sorted = [...chart.timeTags].sort((a, b) => cmp(a.beat, b.beat));
+        const targetTag = forward
+          ? sorted.find((t) => toFloat(t.beat) > beat + 1e-4)
+          : [...sorted].reverse().find((t) => toFloat(t.beat) < beat - 1e-4);
+        if (targetTag) {
+          if (editor.playing) editor.pause();
+          editor.seek(beatToMusicTime(chart, toFloat(targetTag.beat)));
+        }
         return;
       }
       if (mod) return;

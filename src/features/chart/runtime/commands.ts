@@ -27,6 +27,8 @@ import {
   type Id,
   type JudgeLine,
   type LayerOwner,
+  type LineDisplay,
+  type LineGroup,
   type MediaObject,
   type NoiseField,
   type Note,
@@ -34,6 +36,7 @@ import {
   type ShaderEffect,
   type TextEvent,
   type TextObject,
+  type TimeTag,
   type TrackKey,
   isMedia,
   isNoise,
@@ -47,10 +50,27 @@ import {
 
 const sortNotes = (notes: Note[]) => notes.sort((a, b) => cmp(a.beat, b.beat) || a.x - b.x);
 
-export const mapLine = (chart: Chart, lineId: Id, fn: (l: JudgeLine) => JudgeLine): Chart => ({
-  ...chart,
-  lines: chart.lines.map((l) => (l.id === lineId ? fn(l) : l)),
-});
+export const isLineLocked = (chart: Chart, id: Id) => !!chart.editor.lines[id]?.locked;
+
+export const patchLineDisplay = (
+  chart: Chart,
+  lineId: Id,
+  patch: Partial<LineDisplay>,
+): Chart => {
+  const next = { ...chart.editor.lines[lineId], ...patch };
+  const lines = { ...chart.editor.lines };
+  if (!next.color && !next.locked && !next.hidden) delete lines[lineId];
+  else lines[lineId] = next;
+  return { ...chart, editor: { ...chart.editor, lines } };
+};
+
+export const mapLine = (chart: Chart, lineId: Id, fn: (l: JudgeLine) => JudgeLine): Chart =>
+  isLineLocked(chart, lineId)
+    ? chart
+    : {
+        ...chart,
+        lines: chart.lines.map((l) => (l.id === lineId ? fn(l) : l)),
+      };
 
 export const mapText = (chart: Chart, textId: Id, fn: (t: TextObject) => TextObject): Chart => ({
   ...chart,
@@ -170,17 +190,23 @@ export const addLine = (chart: Chart, line = createLine(`Line ${chart.lines.leng
   lines: [...chart.lines, line],
 });
 
-export const removeLine = (chart: Chart, lineId: Id): Chart => ({
-  ...chart,
-  lines: chart.lines
-    .filter((l) => l.id !== lineId)
-    .map((l) => (l.parentId === lineId ? { ...l, parentId: null } : l)),
-  texts: chart.texts.map((t) => (t.parentId === lineId ? { ...t, parentId: null } : t)),
-  media: chart.media.map((m) => (m.parentId === lineId ? { ...m, parentId: null } : m)),
-  noiseFields: chart.noiseFields.map((f) =>
-    f.parentId === lineId ? { ...f, parentId: null } : f,
-  ),
-});
+export const removeLine = (chart: Chart, lineId: Id): Chart => {
+  if (isLineLocked(chart, lineId)) return chart;
+  const editorLines = { ...chart.editor.lines };
+  delete editorLines[lineId];
+  return {
+    ...chart,
+    editor: { ...chart.editor, lines: editorLines },
+    lines: chart.lines
+      .filter((l) => l.id !== lineId)
+      .map((l) => (l.parentId === lineId ? { ...l, parentId: null } : l)),
+    texts: chart.texts.map((t) => (t.parentId === lineId ? { ...t, parentId: null } : t)),
+    media: chart.media.map((m) => (m.parentId === lineId ? { ...m, parentId: null } : m)),
+    noiseFields: chart.noiseFields.map((f) =>
+      f.parentId === lineId ? { ...f, parentId: null } : f,
+    ),
+  };
+};
 
 export const setLineParent = (chart: Chart, lineId: Id, parentId: Id | null) =>
   mapLine(chart, lineId, (l) => ({ ...l, parentId }));
@@ -316,6 +342,54 @@ export const setOffset = (chart: Chart, offsetMs: number): Chart => ({ ...chart,
 export const baseBpm = (chart: Chart) =>
   chart.bpmList.find((p) => eq(p.beat, ZERO))?.bpm ?? chart.bpmList[0]?.bpm ?? 120;
 
+const sortedTags = (list: TimeTag[]) => [...list].sort((a, b) => cmp(a.beat, b.beat));
+
+export const addTimeTag = (
+  chart: Chart,
+  beat: Beat,
+  name = `Tag ${chart.timeTags.length + 1}`,
+): Chart => ({
+  ...chart,
+  timeTags: sortedTags([...chart.timeTags, { id: createId(), name, beat }]),
+});
+
+export const patchTimeTag = (
+  chart: Chart,
+  id: Id,
+  patch: Partial<Pick<TimeTag, 'name' | 'beat'>>,
+): Chart => {
+  if (patch.beat && cmp(patch.beat, ZERO) < 0) return chart;
+  return {
+    ...chart,
+    timeTags: sortedTags(chart.timeTags.map((t) => (t.id === id ? { ...t, ...patch } : t))),
+  };
+};
+
+export const removeTimeTag = (chart: Chart, id: Id): Chart => ({
+  ...chart,
+  timeTags: chart.timeTags.filter((t) => t.id !== id),
+});
+
+export const addLineGroup = (
+  chart: Chart,
+  name = `Group ${chart.lineGroups.length + 1}`,
+  group: LineGroup = { id: createId(), name },
+): Chart => ({
+  ...chart,
+  lineGroups: [...chart.lineGroups, group],
+});
+
+export const renameLineGroup = (chart: Chart, id: Id, name: string): Chart => ({
+  ...chart,
+  lineGroups: chart.lineGroups.map((g) => (g.id === id ? { ...g, name } : g)),
+});
+
+export const removeLineGroup = (chart: Chart, id: Id): Chart => ({
+  ...chart,
+  lineGroups: chart.lineGroups.filter((g) => g.id !== id),
+  lines: chart.lines.map((l) => (l.groupId === id ? { ...l, groupId: null } : l)),
+});
+
 // Events (see chart-data-plan §4: no overlaps within one layer channel).
 
 export const findOwner = (chart: Chart, id: Id | null): EventOwner | undefined =>
@@ -349,6 +423,7 @@ function editEvents(
   fn: TrackEdit,
   newVars: string[] = [],
 ): Chart {
+  if (isLineLocked(chart, ownerId)) return chart;
   const owner = findOwner(chart, ownerId);
   if (!owner) return chart;
   let changed = false;

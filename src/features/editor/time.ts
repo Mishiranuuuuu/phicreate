@@ -23,12 +23,13 @@ export interface Hit {
 
 const hitCache = new WeakMap<Chart, Hit[]>();
 
-// Every real (non-fake) note head, sorted by chart time.
+// Every real (non-fake) note head on visible lines, sorted by chart time.
 export function getHits(chart: Chart) {
   let hits = hitCache.get(chart);
   if (!hits) {
     hits = [];
     for (const line of chart.lines) {
+      if (chart.editor.lines[line.id]?.hidden) continue;
       for (const n of line.notes) {
         if (!n.fake)
           hits.push({ time: beatToSeconds(chart.bpmList, toFloat(n.beat)), type: n.type });
