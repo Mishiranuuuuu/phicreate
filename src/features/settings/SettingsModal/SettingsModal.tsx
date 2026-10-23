@@ -226,6 +226,12 @@ function EditingTab({ settings, update }: { settings: Settings; update: Update }
         onChange={(selectMode) => update({ selectMode })}
       />
       <Toggle
+        label="Anchor point marker"
+        hint="Mark the anchor pivot and center point for the selected judgement line."
+        checked={settings.showAnchorMarker}
+        onChange={(showAnchorMarker) => update({ showAnchorMarker })}
+      />
+      <Toggle
         label="Bearing marker"
         hint="Mark the selected object's origin, pointing up along its rotation."
         checked={settings.bearingMarker}

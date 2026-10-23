@@ -91,6 +91,7 @@ export function PreviewCanvas() {
         highlightSimultaneous: settings.highlightSimultaneous,
         highlightSelected: settings.highlightSelected,
         bearingMarker: settings.bearingMarker,
+        showAnchorMarker: settings.showAnchorMarker !== false,
         overflowPreview: settings.overflowPreview,
         trajectoryGhost: editor.trajectoryGhost,
         textFittingGhost: editor.textFittingGhost,

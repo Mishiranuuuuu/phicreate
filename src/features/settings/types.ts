@@ -19,6 +19,7 @@ export interface Settings {
   eventCurves: boolean;
   selectMode: SelectMode;
   bearingMarker: boolean;
+  showAnchorMarker: boolean;
   // Preview
   overflowPreview: boolean;
   noiseQuality: NoiseQuality;
@@ -41,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   eventCurves: true,
   selectMode: 'box',
   bearingMarker: false,
+  showAnchorMarker: true,
   overflowPreview: true,
   noiseQuality: 'simplified',
   backgroundBlur: true,

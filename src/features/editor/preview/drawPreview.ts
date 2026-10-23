@@ -1,6 +1,6 @@
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from '@/features/chart/model/defaults';
 import { toCss } from '@/features/chart/model/color';
-import type { Chart, Color, MediaFit, TextObject } from '@/features/chart/model/types';
+import type { Chart, Color, JudgeLine, MediaFit, TextObject } from '@/features/chart/model/types';
 import {
   createSampler,
   isNoteVisible,
@@ -71,6 +71,8 @@ export interface PreviewOptions {
   highlightSelected?: boolean;
   // Marks the selected object's origin and up direction.
   bearingMarker?: boolean;
+  // Marks the selected judgement line's anchor point and center point.
+  showAnchorMarker?: boolean;
   hideUI?: boolean;
   hideText?: boolean;
   hideMedia?: boolean;
@@ -153,6 +155,7 @@ export function drawPreview(
     highlightSimultaneous = true,
     highlightSelected = true,
     bearingMarker = false,
+    showAnchorMarker = true,
     hideUI = false,
     hideText = false,
     hideMedia = false,
@@ -414,6 +417,18 @@ export function drawPreview(
             )?.state
           : undefined;
     if (target) withLine(target, () => drawBearing(ctx));
+  }
+
+  // Anchor & Center point marker for selected judgement line
+  if (showAnchorMarker && selectedLineId) {
+    const lineIndex = chart.lines.findIndex((l) => l.id === selectedLineId);
+    if (lineIndex >= 0) {
+      const line = chart.lines[lineIndex];
+      const s = sample(lineIndex);
+      if (s) {
+        drawAnchorCenterMarker(ctx, line, s, scale, scaleX, cx, cy);
+      }
+    }
   }
 
   if (trajectoryGhost && Array.isArray(trajectoryGhost.points) && trajectoryGhost.points.length > 1) {
@@ -785,5 +800,167 @@ function drawBearing(ctx: CanvasRenderingContext2D) {
   ctx.beginPath();
   ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
+}
+
+// Anchor and center point marker for the selected judgement line.
+function drawAnchorCenterMarker(
+  ctx: CanvasRenderingContext2D,
+  line: JudgeLine,
+  state: LineState,
+  scale: number,
+  scaleX: number,
+  cx: number,
+  cy: number,
+) {
+  const sx = cx + state.x * scaleX;
+  const sy = cy - state.y * scale;
+  if (!Number.isFinite(sx) || !Number.isFinite(sy)) return;
+
+  const rawRot = state.rotation;
+  const isRotated = Math.abs(rawRot % 360) > 0.05;
+
+  ctx.save();
+
+  // 1. World-space rotation arc & angle readout if line is rotated
+  if (isRotated) {
+    ctx.save();
+    ctx.translate(sx, sy);
+
+    const rad = (-rawRot * Math.PI) / 180; // Inverted for canvas screen Y
+    const arcRadius = 26;
+
+    // Faint horizontal 0-degree baseline
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 2]);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(arcRadius + 12, 0);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Glowing angle arc
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const anticlockwise = rad < 0;
+    ctx.arc(0, 0, arcRadius, 0, rad, anticlockwise);
+    ctx.stroke();
+
+    // Small angle badge
+    const midAngle = rad / 2;
+    const badgeR = arcRadius + 14;
+    const bx = Math.cos(midAngle) * badgeR;
+    const by = Math.sin(midAngle) * badgeR;
+    const label = `${Math.round(rawRot * 10) / 10}°`;
+
+    ctx.font = '10px monospace';
+    const textW = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.fillRect(bx - textW / 2 - 3, by - 7, textW + 6, 14);
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx - textW / 2 - 3, by - 7, textW + 6, 14);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, bx, by);
+
+    ctx.restore();
+  }
+
+  // 2. Line-space anchor point and geometric center marker
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate((rawRot * Math.PI) / 180);
+
+  const [ax, ay] = line.anchor;
+  const isOffsetAnchor = Math.abs(ax - 0.5) > 0.005 || Math.abs(ay - 0.5) > 0.005;
+
+  // If anchor is offset, draw guide line to geometric line center
+  if (isOffsetAnchor) {
+    const centerOffsetX = (0.5 - ax) * LINE_WIDTH * scale;
+    // Draw dashed connecting line between Anchor and Center
+    ctx.strokeStyle = 'rgba(245, 158, 11, 0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(centerOffsetX, 0);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Diamond marker at geometric center
+    ctx.save();
+    ctx.translate(centerOffsetX, 0);
+    ctx.fillStyle = '#f59e0b';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -6);
+    ctx.lineTo(6, 0);
+    ctx.lineTo(0, 6);
+    ctx.lineTo(-6, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Center text tag
+    ctx.font = '9px sans-serif';
+    ctx.fillStyle = '#fbbf24';
+    ctx.textAlign = 'center';
+    ctx.fillText('Center', 0, 15);
+    ctx.restore();
+  }
+
+  // Anchor Pivot Crosshair at (0, 0)
+  // Contrast shadow outline
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  // Circle
+  ctx.arc(0, 0, 8, 0, Math.PI * 2);
+  // Crosshair ticks
+  ctx.moveTo(-16, 0); ctx.lineTo(-8, 0);
+  ctx.moveTo(8, 0); ctx.lineTo(16, 0);
+  ctx.moveTo(0, 8); ctx.lineTo(0, 13);
+  ctx.moveTo(0, -8); ctx.lineTo(0, -18);
+  // Arrow head pointing in -Y (Above)
+  ctx.moveTo(-4, -13); ctx.lineTo(0, -18); ctx.lineTo(4, -13);
+  ctx.stroke();
+
+  // Vibrant foreground lines
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  // Circle
+  ctx.arc(0, 0, 8, 0, Math.PI * 2);
+  // Crosshair ticks
+  ctx.moveTo(-15, 0); ctx.lineTo(-8, 0);
+  ctx.moveTo(8, 0); ctx.lineTo(15, 0);
+  ctx.moveTo(0, 8); ctx.lineTo(0, 12);
+  ctx.moveTo(0, -8); ctx.lineTo(0, -17);
+  // Arrow head pointing in -Y (Above)
+  ctx.moveTo(-3.5, -13); ctx.lineTo(0, -17); ctx.lineTo(3.5, -13);
+  ctx.stroke();
+
+  // Solid white core dot
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // If offset anchor, add small "Pivot" label
+  if (isOffsetAnchor) {
+    ctx.font = '9px sans-serif';
+    ctx.fillStyle = '#38bdf8';
+    ctx.textAlign = 'center';
+    ctx.fillText('Pivot', 0, 22);
+  }
+
+  ctx.restore();
   ctx.restore();
 }

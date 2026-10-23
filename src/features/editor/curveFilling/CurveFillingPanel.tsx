@@ -676,7 +676,7 @@ export function CurveFillingPanel() {
         disabled={!sampledNotes.length}
         onClick={handleGenerate}
       >
-        <span>⚡ Generate {sampledNotes.length} notes</span>
+        <span>Generate {sampledNotes.length} notes</span>
       </button>
     </div>
   );
