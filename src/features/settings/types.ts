@@ -15,10 +15,12 @@ export interface Settings {
   hitsoundVolume: number;
   audioOffsetMs: number;
   // Editing
+  showWaveform: boolean;
   eventCurves: boolean;
   selectMode: SelectMode;
   bearingMarker: boolean;
   // Preview
+  overflowPreview: boolean;
   noiseQuality: NoiseQuality;
   backgroundBlur: boolean;
   highlightSimultaneous: boolean;
@@ -35,9 +37,11 @@ export const DEFAULT_SETTINGS: Settings = {
   musicVolume: 1,
   hitsoundVolume: 0.5,
   audioOffsetMs: 0,
+  showWaveform: true,
   eventCurves: true,
   selectMode: 'box',
   bearingMarker: false,
+  overflowPreview: true,
   noiseQuality: 'simplified',
   backgroundBlur: true,
   highlightSimultaneous: true,

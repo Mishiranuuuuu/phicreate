@@ -1,5 +1,9 @@
 import { toFloat } from '@/features/chart/model/beat';
-import type { TimeTag } from '@/features/chart/model/types';
+import type { Chart, TimeTag } from '@/features/chart/model/types';
+import { useSettingsStore } from '@/features/settings/useSettingsStore';
+import { playback } from '../playback/playback';
+import type { WaveformData } from '../playback/waveform';
+import { beatToMusicTime } from '../time';
 import type { GridGeometry } from './geometry';
 
 export interface Palette {
@@ -66,6 +70,54 @@ export interface Vertical {
   strong?: boolean;
 }
 
+function drawWaveform(
+  ctx: CanvasRenderingContext2D,
+  g: GridGeometry,
+  p: Palette,
+  chart: Chart,
+  waveform: WaveformData,
+) {
+  const top = HEADER_HEIGHT;
+  const bottom = g.height - FOOTER_HEIGHT;
+  if (bottom <= top) return;
+
+  const cx = (g.x0 + g.x1) / 2;
+  const maxW = (g.x1 - g.x0) * 0.46;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(g.x0, top, g.x1 - g.x0, bottom - top);
+  ctx.clip();
+
+  ctx.fillStyle = p.accent;
+  ctx.globalAlpha = 0.16;
+
+  ctx.beginPath();
+  let started = false;
+  for (let y = top; y <= bottom; y += 2) {
+    const beat = g.yToBeat(y);
+    const time = beatToMusicTime(chart, beat);
+    const amp = waveform.sampleAt(time);
+    const w = amp * maxW;
+    if (!started) {
+      ctx.moveTo(cx + w, y);
+      started = true;
+    } else {
+      ctx.lineTo(cx + w, y);
+    }
+  }
+  for (let y = bottom; y >= top; y -= 2) {
+    const beat = g.yToBeat(y);
+    const time = beatToMusicTime(chart, beat);
+    const amp = waveform.sampleAt(time);
+    const w = amp * maxW;
+    ctx.lineTo(cx - w, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 // Backdrop, vertical guides, beat lines, time tags and the playhead (judge line).
 export function drawTimeGrid(
   ctx: CanvasRenderingContext2D,
@@ -76,6 +128,7 @@ export function drawTimeGrid(
   // < 1 lets the gameplay preview show through.
   backdrop = 1,
   timeTags?: TimeTag[],
+  chart?: Chart,
 ) {
   ctx.clearRect(0, 0, g.width, g.height);
   ctx.globalAlpha = backdrop;
@@ -84,6 +137,11 @@ export function drawTimeGrid(
   ctx.fillStyle = p.surface;
   ctx.fillRect(g.x0, 0, g.x1 - g.x0, g.height);
   ctx.globalAlpha = 1;
+
+  if (chart && useSettingsStore.getState().settings.showWaveform) {
+    const waveform = playback.getWaveform();
+    if (waveform) drawWaveform(ctx, g, p, chart, waveform);
+  }
 
   ctx.lineWidth = 1;
   ctx.strokeStyle = p.border;

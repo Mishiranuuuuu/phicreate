@@ -1,6 +1,7 @@
+import { useRef } from 'react';
 import { cmp, format, parse } from '@/features/chart/model/beat';
 import { parseColor, toHex } from '@/features/chart/model/color';
-import { NOTE_TYPES, type Note } from '@/features/chart/model/types';
+import { NOTE_TYPES, type Chart, type Note } from '@/features/chart/model/types';
 import { updateNotes } from '@/features/chart/runtime/commands';
 import { useChartStore } from '@/features/chart/runtime/useChartStore';
 import { parseNumber } from '@/lib/number';
@@ -11,12 +12,12 @@ import styles from './SidePanel.module.css';
 
 type NumKey = 'x' | 'speed' | 'alpha' | 'size' | 'yOffset';
 
-const NUM_FIELDS: { key: NumKey; label: string; min?: number; max?: number }[] = [
-  { key: 'x', label: 'X' },
-  { key: 'speed', label: 'Speed' },
-  { key: 'alpha', label: 'Alpha', min: 0, max: 255 },
-  { key: 'size', label: 'Size', min: 0 },
-  { key: 'yOffset', label: 'Y offset' },
+const NUM_FIELDS: { key: NumKey; label: string; min?: number; max?: number; step: number }[] = [
+  { key: 'x', label: 'X', step: 1 },
+  { key: 'speed', label: 'Speed', step: 0.05 },
+  { key: 'alpha', label: 'Alpha', min: 0, max: 255, step: 1 },
+  { key: 'size', label: 'Size', min: 0, step: 0.02 },
+  { key: 'yOffset', label: 'Y offset', step: 1 },
 ];
 
 const EMPTY: Note[] = [];
@@ -25,6 +26,7 @@ const EMPTY: Note[] = [];
 export function NoteProperties() {
   const lineId = useEditorStore((s) => s.selectedLineId);
   const ids = useEditorStore((s) => s.selectedNoteIds);
+  const beforeChartRef = useRef<Chart | null>(null);
   const lineNotes = useChartStore(
     (s) => s.chart?.lines.find((l) => l.id === lineId)?.notes ?? EMPTY,
   );
@@ -32,6 +34,40 @@ export function NoteProperties() {
   const notes = lineNotes.filter((n) => ids.includes(n.id));
 
   if (!lineId || !notes.length) return <p className={styles.muted}>No note selected.</p>;
+
+  const scrubField = (
+    key: NumKey,
+    delta: number,
+    isFinal: boolean,
+    min?: number,
+    max?: number,
+  ) => {
+    if (beforeChartRef.current === null) {
+      beforeChartRef.current = useChartStore.getState().chart;
+    }
+    if (delta !== 0) {
+      useChartStore.getState().transactPreview((c) =>
+        updateNotes(
+          c,
+          lineId,
+          notes.map((n) => n.id),
+          (n) => {
+            const cur = Number(n[key]);
+            let next = Math.round((cur + delta) * 1000) / 1000;
+            if (min !== undefined) next = Math.max(min, next);
+            if (max !== undefined) next = Math.min(max, next);
+            return { ...n, [key]: next };
+          },
+        ),
+      );
+    }
+    if (isFinal) {
+      if (beforeChartRef.current) {
+        useChartStore.getState().commitTransaction(beforeChartRef.current);
+        beforeChartRef.current = null;
+      }
+    }
+  };
 
   const update = (fn: (n: Note) => Note) =>
     apply((c) =>
@@ -103,10 +139,15 @@ export function NoteProperties() {
         </Row>
       )}
 
-      {NUM_FIELDS.map(({ key, label, min, max }) => {
+      {NUM_FIELDS.map(({ key, label, min, max, step }) => {
         const value = shared((n) => n[key]);
         return (
-          <Row key={key} label={label}>
+          <Row
+            key={key}
+            label={label}
+            onScrub={(d, fin) => scrubField(key, d, fin, min, max)}
+            scrubStep={step}
+          >
             <CommitInput
               value={value === undefined ? '' : String(value)}
               placeholder="—"

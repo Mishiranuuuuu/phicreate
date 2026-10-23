@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui';
 import { cmp, format, parse, toFloat } from '@/features/chart/model/beat';
 import { isColor, parseColor, toHex } from '@/features/chart/model/color';
@@ -7,6 +7,7 @@ import {
   DEFAULT_FONT,
   isNoise,
   isShader,
+  type Chart,
   type Color,
   type ColorEvent,
   type Easing,
@@ -47,6 +48,15 @@ const DEFAULT_BEZIER: BezierPoints = [0.25, 0.1, 0.25, 1];
 // Edits the selected events; mixed values show blank and apply to all on commit.
 export function EventProperties() {
   const [sampling, setSampling] = useState(false);
+  const beforeChartRef = useRef<Chart | null>(null);
+  const loopRafRef = useRef<number>(0);
+
+  useEffect(() => {
+    return () => {
+      if (loopRafRef.current) cancelAnimationFrame(loopRafRef.current);
+    };
+  }, []);
+
   const ownerId = useEditorStore((s) => s.selectedObjectId ?? s.selectedLineId);
   const ids = useEditorStore((s) => s.selectedEventIds);
   const layerId = useEditorStore((s) => s.selectedLayerId);
@@ -136,8 +146,58 @@ export function EventProperties() {
         onCommit={commit}
       />
     );
+
+    const scrub = (delta: number, isFinal: boolean) => {
+      if (nums.length === 0) return;
+      if (beforeChartRef.current === null) {
+        const curChart = useChartStore.getState().chart;
+        beforeChartRef.current = curChart;
+        if (single && curChart && !useEditorStore.getState().playing) {
+          const t0 = beatToMusicTime(curChart, toFloat(single.event.start));
+          const t1 = beatToMusicTime(curChart, toFloat(single.event.end));
+          const span = Math.max(0.3, t1 - t0);
+          const startStamp = performance.now();
+          const loop = () => {
+            const elapsed = (performance.now() - startStamp) / 1000;
+            useEditorStore.getState().seek(t0 + (elapsed % (span + 0.15)));
+            loopRafRef.current = requestAnimationFrame(loop);
+          };
+          loopRafRef.current = requestAnimationFrame(loop);
+        }
+      }
+
+      if (delta !== 0) {
+        useChartStore.getState().transactPreview((c) =>
+          updateEvents(c, owner.id, targetLayer, ids, (e) => {
+            const cur = Number(e[key]);
+            const next = Math.round((cur + delta) * 1000) / 1000;
+            return set(e, key, next);
+          }),
+        );
+      }
+
+      if (isFinal) {
+        if (loopRafRef.current) {
+          cancelAnimationFrame(loopRafRef.current);
+          loopRafRef.current = 0;
+        }
+        const curChart = useChartStore.getState().chart;
+        if (single && curChart) {
+          useEditorStore.getState().seek(beatToMusicTime(curChart, toFloat(single.event.start)));
+        }
+        if (beforeChartRef.current) {
+          useChartStore.getState().commitTransaction(beforeChartRef.current);
+          beforeChartRef.current = null;
+        }
+      }
+    };
+
     return (
-      <Row label={label}>
+      <Row
+        label={label}
+        onScrub={nums.length > 0 ? scrub : undefined}
+        scrubStep={nums.length > 0 ? sampleBounds(selected[0].channel)[2] : 1}
+      >
         {colors.length === events.length ? (
           <span className={styles.colorField}>
             <ColorPicker key={value} value={value ?? '#ffffff'} onCommit={commit} />

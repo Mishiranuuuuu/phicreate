@@ -196,6 +196,22 @@ span.bpmBeat {
 .row > span {
   color: var(--c-text-muted);
 }
+.row span.scrubbable {
+  cursor: ew-resize;
+  user-select: none;
+  border-bottom: 1px dotted var(--c-text-muted);
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.row span.scrubbable:hover {
+  color: var(--c-accent);
+  border-bottom-color: var(--c-accent);
+}
+.row span.scrubbing {
+  cursor: ew-resize;
+  user-select: none;
+  color: var(--c-accent);
+  border-bottom: 1px solid var(--c-accent);
+}
 .row input:not([type='checkbox']),
 .row select {
   width: 120px;

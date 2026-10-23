@@ -207,6 +207,12 @@ function EditingTab({ settings, update }: { settings: Settings; update: Update }
   return (
     <Section title="Grid">
       <Toggle
+        label="Audio waveform"
+        hint="Render the audio waveform along the timeline grid."
+        checked={settings.showWaveform}
+        onChange={(showWaveform) => update({ showWaveform })}
+      />
+      <Toggle
         label="Event trajectory curves"
         hint="Draw each event's easing curve in the event grid."
         checked={settings.eventCurves}
@@ -233,6 +239,12 @@ function PreviewTab({ settings, update }: { settings: Settings; update: Update }
   return (
     <>
       <Section title="Rendering">
+        <Toggle
+          label="Window overflow preview"
+          hint="Show out-of-bounds lines and notes outside the play frame."
+          checked={settings.overflowPreview}
+          onChange={(overflowPreview) => update({ overflowPreview })}
+        />
         <Select
           label="Noise field quality"
           hint="Original matches the game's shaded look but is slower."

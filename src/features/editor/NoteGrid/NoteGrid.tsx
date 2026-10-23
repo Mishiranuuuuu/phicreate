@@ -66,6 +66,7 @@ export function NoteGrid() {
       lanes,
       editor.previewBehind ? GRID_BACKDROP : 1,
       chart.timeTags,
+      chart,
     );
 
     const line = currentLine(chart);

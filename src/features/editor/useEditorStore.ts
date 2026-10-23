@@ -43,6 +43,7 @@ interface EditorState {
   duration: number;
   playing: boolean;
   saveStatus: 'saved' | 'unsaved' | 'saving';
+  trajectoryGhost: { points: { x: number; y: number; angle: number }[]; autoTangent: boolean } | null;
 
   set: (patch: Partial<EditorState>) => void;
   reset: (lineId: Id | null) => void;
@@ -97,6 +98,7 @@ const initial = {
   duration: 0,
   playing: false,
   saveStatus: 'saved' as EditorState['saveStatus'],
+  trajectoryGhost: null,
 };
 
 export const useEditorStore = create<EditorState>((set, get) => ({

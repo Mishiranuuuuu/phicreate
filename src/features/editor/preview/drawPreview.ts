@@ -75,6 +75,8 @@ export interface PreviewOptions {
   hideText?: boolean;
   hideMedia?: boolean;
   hideNoise?: boolean;
+  overflowPreview?: boolean;
+  trajectoryGhost?: { points: { x: number; y: number; angle: number }[]; autoTangent: boolean } | null;
 }
 
 // The play frame is CANVAS_HEIGHT tall and CANVAS_HEIGHT * aspect wide, fitted then zoomed by 1 / fov.
@@ -149,6 +151,8 @@ export function drawPreview(
     hideText = false,
     hideMedia = false,
     hideNoise = false,
+    overflowPreview = true,
+    trajectoryGhost,
   }: PreviewOptions,
 ) {
   const vp = previewViewport(width, height, aspect, fov);
@@ -158,12 +162,14 @@ export function drawPreview(
   const cy = height / 2;
 
   ctx.save();
-  // Zoomed out past 1, content outside the frame stays visible.
-  if (fov <= 1) {
+  // Zoomed out past 1 or overflow preview enabled: content outside the frame stays visible.
+  if (fov <= 1 && !overflowPreview) {
     ctx.beginPath();
     ctx.rect(vp.left, vp.top, vp.width, vp.height);
     ctx.clip();
   }
+  ctx.fillStyle = overflowPreview ? '#0a0a0a' : '#111';
+  ctx.fillRect(0, 0, width, height);
   ctx.fillStyle = '#111';
   ctx.fillRect(vp.left, vp.top, vp.width, vp.height);
   const bg = getBackground(backgroundBlur);
@@ -402,10 +408,69 @@ export function drawPreview(
     if (target) withLine(target, () => drawBearing(ctx));
   }
 
+  if (trajectoryGhost && Array.isArray(trajectoryGhost.points) && trajectoryGhost.points.length > 1) {
+    try {
+      const validPoints = trajectoryGhost.points.filter(
+        (pt) => pt && Number.isFinite(pt.x) && Number.isFinite(pt.y),
+      );
+      if (validPoints.length > 1) {
+        ctx.save();
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([8, 6]);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.beginPath();
+        for (let k = 0; k < validPoints.length; k++) {
+          const sx = cx + validPoints[k].x * scaleX;
+          const sy = cy - validPoints[k].y * scale;
+          if (k === 0) ctx.moveTo(sx, sy);
+          else ctx.lineTo(sx, sy);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Start marker (green dot)
+        const s0x = cx + validPoints[0].x * scaleX;
+        const s0y = cy - validPoints[0].y * scale;
+        if (Number.isFinite(s0x) && Number.isFinite(s0y)) {
+          ctx.fillStyle = '#10b981';
+          ctx.beginPath();
+          ctx.arc(s0x, s0y, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // End marker (rose dot)
+        const lastPt = validPoints[validPoints.length - 1];
+        const enx = cx + lastPt.x * scaleX;
+        const eny = cy - lastPt.y * scale;
+        if (Number.isFinite(enx) && Number.isFinite(eny)) {
+          ctx.fillStyle = '#f43f5e';
+          ctx.beginPath();
+          ctx.arc(enx, eny, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    } catch (err) {
+      console.warn('Trajectory ghost render error:', err);
+    }
+  }
+
   ctx.restore();
 
-  if (fov > 1) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  if (overflowPreview && fov <= 1) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
+    if (vp.left > 0) ctx.fillRect(0, 0, vp.left, height);
+    if (vp.left + vp.width < width) ctx.fillRect(vp.left + vp.width, 0, width - (vp.left + vp.width), height);
+    if (vp.top > 0) ctx.fillRect(vp.left, 0, vp.width, vp.top);
+    if (vp.top + vp.height < height) ctx.fillRect(vp.left, vp.top + vp.height, vp.width, height - (vp.top + vp.height));
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(vp.left + 0.5, vp.top + 0.5, vp.width, vp.height);
+    ctx.restore();
+  } else if (fov > 1) {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
     ctx.lineWidth = 1;
     ctx.strokeRect(vp.left + 0.5, vp.top + 0.5, vp.width, vp.height);
   }

@@ -6,6 +6,8 @@ import { ObjectProperties } from './ObjectProperties';
 import { MetadataPanel } from './MetadataPanel';
 import { NoteProperties } from './NoteProperties';
 import { LineGroupsPanel, TimingPanel } from './TimingPanel';
+import { TrajectoryPanel } from '../trajectory/TrajectoryPanel';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import styles from './SidePanel.module.css';
 
 export function SidePanel() {
@@ -78,6 +80,7 @@ const FEATURES: { id: string; label: string; panel: () => ReactNode }[] = [
   { id: 'metadata', label: 'Metadata', panel: () => <MetadataPanel /> },
   { id: 'timing', label: 'Timing & BPM', panel: () => <TimingPanel /> },
   { id: 'groups', label: 'Line groups', panel: () => <LineGroupsPanel /> },
+  { id: 'trajectory', label: 'Curve trajectory', panel: () => <TrajectoryPanel /> },
 ];
 
 // One feature expanded at a time.
@@ -95,7 +98,13 @@ function FeatureNav() {
             <span>{f.label}</span>
             <span>{f.id === open ? '▾' : '▸'}</span>
           </button>
-          {f.id === open && <div className={styles.navBody}>{f.panel()}</div>}
+          {f.id === open && (
+            <div className={styles.navBody}>
+              <ErrorBoundary fallbackTitle={`Error in ${f.label}`}>
+                {f.panel()}
+              </ErrorBoundary>
+            </div>
+          )}
         </div>
       ))}
     </nav>

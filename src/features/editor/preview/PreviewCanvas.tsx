@@ -91,6 +91,8 @@ export function PreviewCanvas() {
         highlightSimultaneous: settings.highlightSimultaneous,
         highlightSelected: settings.highlightSelected,
         bearingMarker: settings.bearingMarker,
+        overflowPreview: settings.overflowPreview,
+        trajectoryGhost: editor.trajectoryGhost,
       });
     };
     raf = requestAnimationFrame(frame);

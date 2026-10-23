@@ -107,6 +107,7 @@ export function EventGrid() {
       cols.map((_, i) => ({ px: g.x0 + i * w, strong: true })),
       editor.previewBehind ? GRID_BACKDROP : 1,
       chart.timeTags,
+      chart,
     );
 
     if (!target) return;

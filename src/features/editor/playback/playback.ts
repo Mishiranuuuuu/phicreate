@@ -1,4 +1,5 @@
 import { getAudioContext } from './audioContext';
+import { getWaveform, type WaveformData } from './waveform';
 
 // Music clock. Decoded Web Audio gives sample-accurate seeks; falls back to a wall clock without audio.
 class Playback {
@@ -43,6 +44,14 @@ class Playback {
 
   get hasAudio() {
     return !!this.buffer;
+  }
+
+  getWaveform(): WaveformData | null {
+    return this.buffer ? getWaveform(this.buffer) : null;
+  }
+
+  getAudioBuffer(): AudioBuffer | null {
+    return this.buffer;
   }
 
   get duration() {

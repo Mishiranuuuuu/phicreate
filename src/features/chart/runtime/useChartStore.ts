@@ -11,6 +11,10 @@ interface ChartState {
   load: (projectId: string, chart: Chart) => void;
   unload: () => void;
   apply: (fn: (chart: Chart) => Chart) => void;
+  // Transient edit without pushing to history (used while actively dragging/scrubbing).
+  transactPreview: (fn: (chart: Chart) => Chart) => void;
+  // Commits a finished transaction, recording beforeChart as the single past undo snapshot.
+  commitTransaction: (beforeChart: Chart) => void;
   // Applies to every snapshot without a history entry (e.g. file renames).
   rewrite: (fn: (chart: Chart) => Chart) => void;
   undo: () => void;
@@ -38,6 +42,20 @@ export const useChartStore = create<ChartState>((set, get) => ({
     const next = fn(chart);
     if (next === chart) return;
     set({ chart: next, past: [...past, chart].slice(-HISTORY_LIMIT), future: [] });
+  },
+
+  transactPreview(fn) {
+    const { chart } = get();
+    if (!chart) return;
+    const next = fn(chart);
+    if (next === chart) return;
+    set({ chart: next });
+  },
+
+  commitTransaction(beforeChart) {
+    const { chart, past } = get();
+    if (!chart || chart === beforeChart) return;
+    set({ past: [...past, beforeChart].slice(-HISTORY_LIMIT), future: [] });
   },
 
   rewrite(fn) {
