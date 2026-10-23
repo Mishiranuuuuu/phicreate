@@ -7,6 +7,8 @@ import { MetadataPanel } from './MetadataPanel';
 import { NoteProperties } from './NoteProperties';
 import { LineGroupsPanel, TimingPanel } from './TimingPanel';
 import { TrajectoryPanel } from '../trajectory/TrajectoryPanel';
+import { CurveFillingPanel } from '../curveFilling/CurveFillingPanel';
+import { TextFittingPanel } from '../textFitting/TextFittingPanel';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import styles from './SidePanel.module.css';
 
@@ -81,6 +83,8 @@ const FEATURES: { id: string; label: string; panel: () => ReactNode }[] = [
   { id: 'timing', label: 'Timing & BPM', panel: () => <TimingPanel /> },
   { id: 'groups', label: 'Line groups', panel: () => <LineGroupsPanel /> },
   { id: 'trajectory', label: 'Curve trajectory', panel: () => <TrajectoryPanel /> },
+  { id: 'curveFilling', label: 'Curve note filling', panel: () => <CurveFillingPanel /> },
+  { id: 'textFitting', label: 'Text to notes', panel: () => <TextFittingPanel /> },
 ];
 
 // One feature expanded at a time.

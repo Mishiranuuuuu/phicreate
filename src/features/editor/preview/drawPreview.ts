@@ -77,6 +77,12 @@ export interface PreviewOptions {
   hideNoise?: boolean;
   overflowPreview?: boolean;
   trajectoryGhost?: { points: { x: number; y: number; angle: number }[]; autoTangent: boolean } | null;
+  textFittingGhost?: { notes: { x: number; y: number; type: 'tap' | 'drag' | 'hold' | 'flick' }[] } | null;
+  curveFillGhost?: {
+    targetLineId: string | null;
+    notes: { x: number; y: number; beat: number; lineX: number; type: 'tap' | 'drag' | 'hold' | 'flick'; above: boolean }[];
+    pathPoints?: { x: number; y: number }[];
+  } | null;
 }
 
 // The play frame is CANVAS_HEIGHT tall and CANVAS_HEIGHT * aspect wide, fitted then zoomed by 1 / fov.
@@ -153,6 +159,8 @@ export function drawPreview(
     hideNoise = false,
     overflowPreview = true,
     trajectoryGhost,
+    textFittingGhost,
+    curveFillGhost,
   }: PreviewOptions,
 ) {
   const vp = previewViewport(width, height, aspect, fov);
@@ -453,6 +461,101 @@ export function drawPreview(
       }
     } catch (err) {
       console.warn('Trajectory ghost render error:', err);
+    }
+  }
+
+  if (textFittingGhost && Array.isArray(textFittingGhost.notes) && textFittingGhost.notes.length > 0) {
+    try {
+      ctx.save();
+      for (const n of textFittingGhost.notes) {
+        if (!n || !Number.isFinite(n.x) || !Number.isFinite(n.y)) continue;
+        const sx = cx + n.x * scaleX;
+        const sy = cy - n.y * scale;
+        if (!Number.isFinite(sx) || !Number.isFinite(sy)) continue;
+
+        const color =
+          n.type === 'drag'
+            ? '#facc15'
+            : n.type === 'flick'
+              ? '#f43f5e'
+              : '#38bdf8';
+
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 3.5 * scale, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1 * scale;
+        ctx.stroke();
+      }
+      ctx.restore();
+    } catch (err) {
+      console.warn('TextFitting ghost render error:', err);
+    }
+  }
+
+  if (curveFillGhost && Array.isArray(curveFillGhost.notes) && curveFillGhost.notes.length > 0) {
+    try {
+      ctx.save();
+      // Draw smooth curve polyline if pathPoints exist
+      if (curveFillGhost.pathPoints && curveFillGhost.pathPoints.length > 1) {
+        ctx.beginPath();
+        let started = false;
+        for (const pt of curveFillGhost.pathPoints) {
+          if (!pt || !Number.isFinite(pt.x) || !Number.isFinite(pt.y)) continue;
+          const sx = cx + pt.x * scaleX;
+          const sy = cy - pt.y * scale;
+          if (!Number.isFinite(sx) || !Number.isFinite(sy)) continue;
+          if (!started) {
+            ctx.moveTo(sx, sy);
+            started = true;
+          } else {
+            ctx.lineTo(sx, sy);
+          }
+        }
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+        ctx.lineWidth = 2 * scale;
+        ctx.setLineDash([4 * scale, 3 * scale]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Draw ghost note markers
+      for (const n of curveFillGhost.notes) {
+        if (!n || !Number.isFinite(n.x) || !Number.isFinite(n.y)) continue;
+        const sx = cx + n.x * scaleX;
+        const sy = cy - n.y * scale;
+        if (!Number.isFinite(sx) || !Number.isFinite(sy)) continue;
+
+        const color =
+          n.type === 'drag'
+            ? '#facc15'
+            : n.type === 'flick'
+              ? '#f43f5e'
+              : n.type === 'hold'
+                ? '#c084fc'
+                : '#38bdf8';
+
+        // Outer glow/halo
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(sx, sy, 5 * scale, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Core note dot
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 3.5 * scale, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.lineWidth = 1 * scale;
+        ctx.stroke();
+      }
+      ctx.restore();
+    } catch (err) {
+      console.warn('CurveFill ghost render error:', err);
     }
   }
 

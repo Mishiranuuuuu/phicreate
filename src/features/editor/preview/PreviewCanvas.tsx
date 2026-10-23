@@ -93,6 +93,8 @@ export function PreviewCanvas() {
         bearingMarker: settings.bearingMarker,
         overflowPreview: settings.overflowPreview,
         trajectoryGhost: editor.trajectoryGhost,
+        textFittingGhost: editor.textFittingGhost,
+        curveFillGhost: editor.curveFillGhost,
       });
     };
     raf = requestAnimationFrame(frame);

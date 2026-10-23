@@ -44,6 +44,12 @@ interface EditorState {
   playing: boolean;
   saveStatus: 'saved' | 'unsaved' | 'saving';
   trajectoryGhost: { points: { x: number; y: number; angle: number }[]; autoTangent: boolean } | null;
+  textFittingGhost: { notes: { x: number; y: number; type: 'tap' | 'drag' | 'hold' | 'flick' }[] } | null;
+  curveFillGhost: {
+    targetLineId: string | null;
+    notes: { x: number; y: number; beat: number; lineX: number; type: 'tap' | 'drag' | 'hold' | 'flick'; above: boolean }[];
+    pathPoints?: { x: number; y: number }[];
+  } | null;
 
   set: (patch: Partial<EditorState>) => void;
   reset: (lineId: Id | null) => void;
@@ -99,6 +105,8 @@ const initial = {
   playing: false,
   saveStatus: 'saved' as EditorState['saveStatus'],
   trajectoryGhost: null,
+  textFittingGhost: null,
+  curveFillGhost: null,
 };
 
 export const useEditorStore = create<EditorState>((set, get) => ({
